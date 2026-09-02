@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+@source "../app";
+@source "../components";
+@source "../lib";
+
+/* ------------------------------------------------------------------
+   Showrunner Studio — tokens visuais
+   Escuro, quente, cinematográfico. Sem fontes remotas: a pilha abaixo é
+   inteiramente do sistema, para que a aplicação funcione offline.
+   ------------------------------------------------------------------ */
+@theme {
+  --color-ink: #060608;
+  --color-ink-2: #0b0b0f;
+  --color-panel: #101015;
+  --color-panel-2: #16161d;
+  --color-hairline: #23232c;
+  --color-mist: #8a8a99;
+  --color-chalk: #ececf2;
+  --color-gold: #e8b04b;
+  --color-gold-soft: #f5d08a;
+  --color-violet: #7c5cff;
+  --color-teal: #3fd0c9;
+  --color-danger: #ff6b6b;
+  --color-warn: #f0a742;
+  --color-ok: #5ed69a;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-panel: 14px;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-ink);
+  color: var(--color-chalk);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Fundo cinematográfico: dois halos suaves + vinheta. */
+.app-backdrop::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, rgba(232, 176, 75, 0.09), transparent 60%),
+    radial-gradient(50rem 36rem at 92% 8%, rgba(124, 92, 255, 0.09), transparent 62%),
+    radial-gradient(80rem 60rem at 50% 120%, rgba(63, 208, 201, 0.05), transparent 60%);
+}
+
+.hairline {
+  border-color: var(--color-hairline);
+}
+
+.panel {
+  background-color: color-mix(in srgb, var(--color-panel) 88%, transparent);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-panel);
+  backdrop-filter: blur(12px);
+}
+
+.pressable {
+  transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.pressable:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+/* Barra de rolagem discreta, coerente com o tema escuro. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-hairline);
+  border-radius: 99px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes sr-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-up {
+  animation: sr-fade-up 0.28s ease both;
+}
+
+@keyframes sr-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+.pulse-soft {
+  animation: sr-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes sr-shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+.shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: sr-shimmer 1.3s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up,
+  .pulse-soft,
+  .shimmer {
+    animation: none;
+  }
+}

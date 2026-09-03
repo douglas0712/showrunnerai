@@ -1,8 +1,15 @@
 # Passo 6: Showrunner Agent Tools - Status Report
 
+## Summary
+**Status**: 4 of 8 FASES complete - Tool infrastructure ready, Gateway integration pending
+
+**Commits**: 5 new commits implementing tools, tests, and investigations  
+**Test Results**: 46/46 tests passing  
+**Code Added**: ~1200 lines (tools + tests + facade)
+
 ## Completed Phases
 
-### FASE A: Tool Registry & Input Validation ✓
+### FASE A: Tool Registry & Input Validation ✓ (COMPLETE)
 - Implemented three native tools: `og.generate_image`, `og.generate_video`, `og.get_job`
 - Added strict input validation with unknown property rejection
 - Fixed Tool Registry with safe-by-construction public API
@@ -29,16 +36,25 @@
 
 ## Remaining Phases
 
-### FASE C: Investigate i2v Support
-**Status**: Needs investigation  
-**Issue**: `submitGeneration()` doesn't handle `sourceAssetId` parameter
-- Facade passes `sourceAssetId` to submitGeneration (line 163)
-- Provider's submitGeneration ignores it (not in params destructuring)
-- Need to:
-  1. Add `sourceAssetId` to submitGeneration signature
-  2. Implement logic to load asset file from storage
-  3. Patch workflow graph to use start frame instead of text-only input
-  4. Distinguish t2v (text-to-video) from i2v (image-to-video) workflows
+### FASE C: Investigate i2v Support ✓ (VALIDATED)
+**Status**: Investigated and documented - architecture validated  
+**Findings**: 
+- Workflow infrastructure for i2v already exists in `minimaxH3.js`
+- `attachFrames()` function ready, `enviarQuadros()` can upload frames
+- submitGeneration signature updated to accept `sourceAssetId`
+- Full i2v bridge (asset file loading) deferred to PASSO 7
+- See: `PASSO-6-FASE-C-FINDINGS.md` for detailed architecture doc
+
+**What's Ready**:
+✓ Tool validates sourceAssetId in facade
+✓ Facade validates asset ownership and kind
+✓ Provider now accepts sourceAssetId parameter
+✓ Workflow can attach frames if provided
+
+**What's Deferred to PASSO 7**:
+- Load Asset binary data from storage
+- Convert asset file to frame upload format
+- Wire asset loading into submitGeneration
 
 ### FASE D: Asset Finalizer
 **Status**: Blocked on FASE C verification  
@@ -151,13 +167,55 @@ tests/
 ```
 
 ## Next Steps (Recommended Order)
-1. **FASE C**: Verify i2v support in provider.js
-2. **FASE D**: Implement Asset finalizer
-3. **FASE G**: Integrate Gateway with registry
-4. **FASE H**: Smoke test if ComfyUI available
-5. Create PASSO 7 integration tests
 
-## Known Blockers
-- None—all input validation tests pass
-- i2v implementation deferred but not blocking tool invocation
-- Asset finalizer can use placeholder storage until full implementation
+### FASE D: Asset Finalizer (BLOCKING on completion for testing)
+```javascript
+// When job completes (STATES.DONE):
+// 1. Query Asset by jobId
+// 2. Create if not exists: createAsset({jobId, kind, projectId, url})
+// 3. For i2v: set derivedFromAssetId to sourceAssetId
+// 4. Mark complete with idempotency flag
+
+Location: New file lib/server/generation/asset-finalizer.js
+Hook: Call on job completion in provider.js
+```
+
+### FASE G: Gateway Integration (BLOCKING for tool execution)
+```javascript
+// In AgentGateway.sendMessage():
+// 1. Get publicToolList from registry
+// 2. Pass to runtime in tool capability list
+// 3. On tool_execute event: call registry.invoke(toolName, context, args)
+// 4. Format result in event stream (tool.complete/tool.failed)
+
+Locations:
+- lib/server/agent/gateway.js (modify sendMessage)
+- lib/server/agent/tools/index.js (export registry)
+```
+
+### FASE H: Smoke Test (End-to-end validation)
+```javascript
+// Full workflow test:
+// 1. Create thread
+// 2. Send message triggering og.generate_image
+// 3. Verify job creation and status tracking
+// 4. Check Asset created and persisted
+// 5. Verify mediaUrl accessible
+
+Location: tests/agent-tools-integration.test.mjs
+Requirement: ComfyUI must be running for full test
+```
+
+## Commit History (PASSO 6)
+```
+f273bea docs: complete FASE C investigation - i2v infrastructure validated
+5079099 docs: save Passo 6 progress (3 of 8 FASES complete)
+91d790d test: add comprehensive test suite for native tools (FASE F)
+5ce76d7 feat: add native Showrunner tools with input validation
+```
+
+## Known Blockers / Deferred
+- **i2v full implementation**: Deferred to PASSO 7 (asset file loading)
+- **Asset storage integration**: Ready for FASE D but needs asset file serving
+- **ComfyUI connection**: Tools work but need real jobs for smoke test
+- **Error recovery**: Asset finalizer should handle concurrent operations

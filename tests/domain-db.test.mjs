@@ -23,8 +23,42 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
     .map((t) => t.name)
     .filter((n) => !n.startsWith('sqlite_'));
 
-  assert.deepEqual(tabelas, ['assets', 'projects', 'scenes']);
+  assert.deepEqual(tabelas, ['agent_messages', 'agent_threads', 'assets', 'projects', 'scenes']);
   db.close();
+});
+
+test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () => {
+  const caminho = path.join(RAIZ, 'migra.db');
+
+  // Um arquivo com a forma da versão 1: as tabelas da migração 2 não existem
+  // e o user_version diz 1. É o estado de qualquer banco criado antes dela.
+  const antigo = openDatabase(caminho);
+  antigo.exec('DROP TABLE agent_messages; DROP TABLE agent_threads; PRAGMA user_version = 1');
+  antigo.prepare(`
+    INSERT INTO projects (id, name, description, aspect, createdAt, updatedAt)
+    VALUES ('proj_anterior', 'Existia antes da conversa', '', '16:9', 1, 1)
+  `).run();
+  antigo.close();
+
+  const migrado = openDatabase(caminho);
+  assert.equal(schemaVersion(migrado), ESQUEMA_ATUAL);
+  assert.equal(
+    migrado.prepare('SELECT name FROM projects WHERE id = ?').get('proj_anterior').name,
+    'Existia antes da conversa',
+    'a migração apagou dado que já existia',
+  );
+
+  // E as tabelas novas estão utilizáveis, com a chave estrangeira valendo.
+  migrado.prepare(`
+    INSERT INTO agent_threads (id, projectId, title, status, createdAt, updatedAt)
+    VALUES ('thread_migrado', 'proj_anterior', 'Conversa', 'active', 2, 2)
+  `).run();
+  assert.throws(() => migrado.prepare(`
+    INSERT INTO agent_threads (id, projectId, title, status, createdAt, updatedAt)
+    VALUES ('thread_orfao', 'proj_inexistente', 'Órfã', 'active', 2, 2)
+  `).run());
+
+  migrado.close();
 });
 
 test('reabrir o mesmo arquivo não reexecuta a migração', () => {

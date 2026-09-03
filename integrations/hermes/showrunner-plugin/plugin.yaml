@@ -1,0 +1,14 @@
+# Plugin do Showrunner para o runtime Hermes.
+#
+# Este arquivo pertence ao repositório do SHOWRUNNER. Ele é instalado no runtime
+# por symlink ou cópia — nunca editado lá dentro. Trocar o runtime de lugar, ou
+# por outro, não exige reescrever nada aqui além de onde ele é instalado.
+name: showrunner
+version: 1.0.0
+description: "Showrunner Studio — encaminha as ferramentas de geração para o Showrunner via socket local. Não executa geração, não acessa disco, não conhece projeto."
+author: Showrunner Studio
+kind: standalone
+provides_tools:
+  - og_generate_image
+  - og_generate_video
+  - og_get_job

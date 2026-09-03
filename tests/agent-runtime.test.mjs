@@ -339,12 +339,25 @@ test('25f. o payload de erro é sempre message + code, nunca a exceção crua', 
 
 // ── seleção de runtime ──────────────────────────────────────────────────────
 
-test('17a. só existe o runtime echo nesta etapa, e ele é o padrão', () => {
-  assert.deepEqual(availableRuntimeIds(), ['echo']);
+test('17a. o echo continua sendo o padrão, mesmo com o runtime dedicado disponível', () => {
+  // PASSO 7B acrescentou 'hermes'. O padrão NÃO mudou junto: trocar o runtime
+  // é decisão de operador, por variável de ambiente, e uma instalação que não
+  // decidiu nada continua no piso determinístico.
+  assert.deepEqual(availableRuntimeIds(), ['echo', 'hermes']);
   assert.equal(DEFAULT_RUNTIME_ID, 'echo');
   assert.equal(configuredRuntimeId(), 'echo');
   assert.equal(createRuntime().id, 'echo');
   assert.equal(createRuntime('echo').id, 'echo');
+});
+
+test('17a-bis. o runtime dedicado nasce indisponível sem configuração', () => {
+  // Sem endereço configurado ele não é utilizável — e o gateway confere a
+  // disponibilidade ANTES de escrever qualquer coisa, então uma instalação
+  // meio-configurada não deixa turno pela metade no banco.
+  const runtime = createRuntime('hermes', { baseUrl: '' });
+  assert.equal(runtime.id, 'hermes');
+  assert.equal(runtime.isAvailable(), false);
+  assert.match(runtime.unavailableReason(), /não está configurado/);
 });
 
 test('17b. runtime desconhecido falha explicitamente — nunca cai em outro', () => {

@@ -1,0 +1,41 @@
+# Configuração do Hermes DEDICADO ao Showrunner.
+#
+# Este arquivo é um MODELO. Ele é copiado para o HERMES_HOME dedicado
+# (runtime/hermes/home/config.yaml por padrão) pelo script de preparação.
+#
+# Ele NÃO substitui e NÃO toca o ~/.hermes/config.yaml pessoal. A instância do
+# Showrunner é outra: outro HERMES_HOME, outra porta, outras sessões.
+#
+# Nenhuma credencial aqui. Chaves de provider ficam no .env do HERMES_HOME
+# dedicado, que o Git ignora, e é o operador quem as coloca lá.
+
+# ── O plugin ────────────────────────────────────────────────────────────────
+# Plugins de usuário são opt-in: sem esta lista o plugin é descoberto e NÃO
+# carregado (hermes_cli/plugins.py:3967 — "opt-in via plugins.enabled").
+plugins:
+  enabled:
+    - showrunner
+
+# ── As ferramentas ──────────────────────────────────────────────────────────
+# O corte real de isolamento é o enabled_toolsets de cada SESSÃO, que o adapter
+# envia e confere. Esta lista é o padrão do ambiente, e existe para que uma
+# sessão criada por engano fora do adapter não caia no conjunto completo.
+platform_toolsets:
+  cli:
+    - showrunner
+    - no_mcp
+
+tools:
+  # Sem isto, as tools de plugin somem atrás de tool_search/tool_describe/
+  # tool_call e o modelo não vê og_generate_image diretamente. Medido no
+  # PASSO 7A.3. A chave é ANINHADA em `tools:` — um `tool_search:` no topo do
+  # arquivo é lido por ninguém.
+  tool_search:
+    enabled: "off"
+
+# ── Modelo ──────────────────────────────────────────────────────────────────
+# Escolha do operador. Deixado comentado de propósito: fixar um modelo aqui
+# tomaria por ele uma decisão que depende das credenciais que ele tem.
+# model:
+#   default: <modelo>
+#   provider: <provider>

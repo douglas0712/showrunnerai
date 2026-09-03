@@ -7,3 +7,7 @@ runtime/logs/
 .DS_Store
 .env*
 runtime/
+
+# Bytecode do plugin Python — gerado pelo runtime ao carregá-lo.
+__pycache__/
+*.pyc

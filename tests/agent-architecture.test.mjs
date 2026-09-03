@@ -15,9 +15,14 @@
 //   o Next                  (`next/server` — a rota importa o gateway, jamais
 //                            o contrário; é isso que a mantém testável)
 //
-// A exceção prevista, quando existir, é `adapters/HermesRuntimeAdapter.js` —
-// é o lugar onde conhecer aquele runtime é a função do arquivo. Ela já está
-// escrita na regra abaixo, e o teste também confere que ela ainda não existe.
+// A exceção prevista chegou no PASSO 7B, e é uma CAMADA, não um arquivo:
+// `adapters/HermesRuntimeAdapter.js` e tudo em `hermes/`. Ali, conhecer o
+// runtime é a função do código — é o tradutor, e um tradutor que não pudesse
+// citar as duas línguas não traduziria nada.
+//
+// A camada de integração é a única que pode citar o runtime, abrir socket ou
+// falar HTTP. Ela continua PROIBIDA de conhecer geração, ComfyUI, modelo e
+// interface — o que ela traduz são eventos e nomes, nunca mídia.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,10 +34,16 @@ const RAIZ = fileURLToPath(new URL('../lib/server/agent/', import.meta.url));
 const RAIZ_ROTAS = fileURLToPath(new URL('../app/api/agent/', import.meta.url));
 
 /**
- * O único arquivo que poderá citar o runtime que o encapsula, quando existir.
- * Enquanto não existir, a lista serve de documentação da exceção.
+ * A camada de integração: os arquivos cuja função é conhecer o runtime externo.
+ *
+ * É uma lista curta de propósito. Cada arquivo aqui é um arquivo a mais que
+ * precisa ser lido quando o runtime for trocado, e a promessa de peça trocável
+ * vale na proporção em que esta lista for pequena.
  */
 const ADAPTADOR_DEDICADO = 'adapters/HermesRuntimeAdapter.js';
+
+const CAMADA_DE_INTEGRACAO = (arquivo) => arquivo === ADAPTADOR_DEDICADO
+  || arquivo.startsWith('hermes/');
 
 async function arquivosDe(raiz, prefixo = '') {
   const entradas = await readdir(path.join(raiz, prefixo), { withFileTypes: true });
@@ -73,8 +84,15 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
   assert.deepEqual([...FONTES.keys()], [
     'AgentRuntimePort.js',
     'adapters/EchoRuntimeAdapter.js',
+    'adapters/HermesRuntimeAdapter.js',
     'events.js',
     'gateway.js',
+    'hermes/aliases.js',
+    'hermes/bridge.js',
+    'hermes/eventTranslator.js',
+    'hermes/httpClient.js',
+    'hermes/sessionBinding.js',
+    'hermes/sseParser.js',
     'httpApi.js',
     'index.js',
     'runtimes.js',
@@ -115,23 +133,50 @@ test('18. o Gateway não conhece nenhum runtime pelo nome — nem o Echo', () =>
   ]);
 });
 
-test('18b. nenhum arquivo da camada cita um runtime de terceiro', () => {
+test('18b. fora da camada de integração, ninguém cita o runtime de terceiro', () => {
   for (const [arquivo, codigo] of FONTES) {
-    if (arquivo === ADAPTADOR_DEDICADO) continue;
+    if (CAMADA_DE_INTEGRACAO(arquivo)) continue;
+    // `runtimes.js` é a tabela de seleção: nomear cada runtime é literalmente o
+    // conteúdo dela, e 18d confere que ela é a ÚNICA a alcançar adaptadores.
+    // Trocar de runtime é editar esta tabela — e é essa a promessa.
+    if (arquivo === 'runtimes.js') continue;
     assert.ok(!/hermes/i.test(codigo), `${arquivo} cita Hermes em código`);
   }
 });
 
-test('18c. o adaptador dedicado ainda não existe — esta etapa não integra nada', () => {
-  assert.ok(
-    !FONTES.has(ADAPTADOR_DEDICADO),
-    'o adaptador do runtime externo apareceu antes do passo que o prevê',
-  );
-  // E só um adaptador existe hoje.
+test('18b-bis. a tabela de seleção cita o runtime apenas como nome e fábrica', () => {
+  // O limite: `runtimes.js` pode NOMEAR o runtime; não pode saber como ele
+  // funciona. Nenhuma URL, nenhum endpoint, nenhum toolset, nenhuma sessão.
+  const runtimes = FONTES.get('runtimes.js');
+  for (const proibido of [/\/api\//, /http/i, /toolset/i, /session/i, /socket/i]) {
+    assert.ok(!proibido.test(runtimes), `runtimes.js sabe demais: cita ${proibido}`);
+  }
+});
+
+test('18c. o adaptador dedicado existe e é o único caminho para o runtime', () => {
+  assert.ok(FONTES.has(ADAPTADOR_DEDICADO), 'o adaptador do runtime externo sumiu');
+
+  // Dois adaptadores: o Echo, que é o piso, e o dedicado. Um terceiro sem
+  // passo que o preveja é o tipo de coisa que entra sem ninguém decidir.
   assert.deepEqual(
     [...FONTES.keys()].filter((f) => f.startsWith('adapters/')),
-    ['adapters/EchoRuntimeAdapter.js'],
+    ['adapters/EchoRuntimeAdapter.js', 'adapters/HermesRuntimeAdapter.js'],
   );
+});
+
+test('18c-bis. a camada de integração não conhece geração, ComfyUI nem modelo', () => {
+  // Ela traduz eventos e nomes. Se um dia souber o que é um Asset ou um nó de
+  // workflow, deixou de ser tradutor e virou uma segunda camada de geração.
+  const proibidos = [
+    /generation\//, /comfy/i, /minimax/i, /ideogram/i, /workflow/i,
+    /ffmpeg/i, /node:child_process/, /StudioContext/, /localStorage/,
+  ];
+  for (const [arquivo, codigo] of FONTES) {
+    if (!CAMADA_DE_INTEGRACAO(arquivo)) continue;
+    for (const proibido of proibidos) {
+      assert.ok(!proibido.test(codigo), `${arquivo} cita ${proibido}`);
+    }
+  }
 });
 
 test('18d. só runtimes.js sabe quais runtimes existem', () => {
@@ -143,6 +188,7 @@ test('18d. só runtimes.js sabe quais runtimes existem', () => {
     );
   }
   assert.match(FONTES.get('runtimes.js'), /adapters\/EchoRuntimeAdapter\.js/);
+  assert.match(FONTES.get('runtimes.js'), /adapters\/HermesRuntimeAdapter\.js/);
 });
 
 // ── anti-lock-in: geração, modelos, ComfyUI ─────────────────────────────────
@@ -316,6 +362,13 @@ test('o Gateway não alcança a camada de geração nem executa mídia', () => {
   const proibidosCore = [...proibidos, /generation\//];
 
   for (const [arquivo, codigo] of FONTES) {
+    // A camada de integração fala HTTP e socket — é literalmente o trabalho
+    // dela. O que ela não pode é alcançar geração, e isso é conferido em
+    // 18c-bis com a lista completa de proibições dela.
+    if (CAMADA_DE_INTEGRACAO(arquivo)) {
+      assert.ok(!/generation\//.test(codigo), `${arquivo} alcança generation/`);
+      continue;
+    }
     // Se é arquivo de tools, permite generation/facade
     if (arquivo.startsWith('tools/')) {
       for (const proibido of proibidos) {

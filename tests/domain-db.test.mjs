@@ -23,7 +23,9 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
     .map((t) => t.name)
     .filter((n) => !n.startsWith('sqlite_'));
 
-  assert.deepEqual(tabelas, ['agent_messages', 'agent_threads', 'assets', 'projects', 'scenes']);
+  assert.deepEqual(tabelas, [
+    'agent_messages', 'agent_threads', 'assets', 'projects', 'runtime_sessions', 'scenes',
+  ]);
   db.close();
 });
 
@@ -33,7 +35,13 @@ test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () =
   // Um arquivo com a forma da versão 1: as tabelas da migração 2 não existem
   // e o user_version diz 1. É o estado de qualquer banco criado antes dela.
   const antigo = openDatabase(caminho);
-  antigo.exec('DROP TABLE agent_messages; DROP TABLE agent_threads; PRAGMA user_version = 1');
+  // A migração 4 também precisa sair: o arquivo nasceu na versão corrente, e
+  // deixá-la para trás faria a reexecução esbarrar numa tabela já existente —
+  // um artefato do teste, não do esquema.
+  antigo.exec(
+    'DROP TABLE runtime_sessions; DROP TABLE agent_messages; DROP TABLE agent_threads; '
+    + 'PRAGMA user_version = 1',
+  );
   antigo.prepare(`
     INSERT INTO projects (id, name, description, aspect, createdAt, updatedAt)
     VALUES ('proj_anterior', 'Existia antes da conversa', '', '16:9', 1, 1)

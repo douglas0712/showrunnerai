@@ -1,16 +1,22 @@
-// Serve os vídeos gravados pelo Showrunner Studio.
+// Serve os arquivos de mídia gravados pelo Showrunner Studio.
 //
 // Segurança: a rota NÃO aceita caminho. Ela aceita exatamente três segmentos
-// — kind/projectId/arquivo — cada um validado contra uma regex estrita antes
-// de qualquer acesso ao disco. O caminho final é resolvido e conferido contra
-// a raiz do runtime; qualquer coisa fora dela é recusada.
+// — kind/projectId/arquivo — cada um validado antes de qualquer acesso ao
+// disco, e o caminho final é resolvido e conferido contra a raiz do runtime.
+//
+// A decisão de qual arquivo, qual MIME e qual política de Range vive em
+// lib/server/generation/mediaServing.js, onde é testável; aqui fica só o I/O e
+// a montagem da resposta.
+//
+//   video/<projeto>/<arquivo>.mp4        → clipe gerado
+//   image/<projeto>/<arquivo>.png|jpg…   → imagem gerada
+//   export/<projeto>/<arquivo>.mp4       → montagem final
+//   frame/<projeto>/<arquivo>.jpg        → quadro da filmstrip em cache
 
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { NextResponse } from 'next/server';
-import {
-  PathValidationError, resolveExportPath, resolveFramePath, resolveVideoPath,
-} from '@/lib/server/comfy/storage';
+import { MediaRequestError, parseByteRange, resolveMediaRequest } from '@/lib/server/generation/mediaServing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,34 +24,18 @@ export const dynamic = 'force-dynamic';
 export async function GET(request, { params }) {
   const { segments } = await params;
 
-  // Três tipos, todos com exatamente três segmentos e nomes validados:
-  //   video/<projeto>/<arquivo>.mp4   → clipe gerado
-  //   export/<projeto>/<arquivo>.mp4  → montagem final
-  //   frame/<projeto>/<arquivo>.jpg   → quadro da filmstrip em cache
-  const TIPOS = {
-    video: { resolver: resolveVideoPath, mime: 'video/mp4', range: true },
-    export: { resolver: resolveExportPath, mime: 'video/mp4', range: true },
-    frame: { resolver: resolveFramePath, mime: 'image/jpeg', range: false },
-  };
-
-  if (!Array.isArray(segments) || segments.length !== 3 || !TIPOS[segments[0]]) {
-    return NextResponse.json({ error: 'Recurso não encontrado.' }, { status: 404 });
-  }
-
-  const [tipo, projectId, filename] = segments;
-  const config = TIPOS[tipo];
-
-  let caminho;
+  let recurso;
   try {
-    caminho = config.resolver(projectId, filename);
+    recurso = resolveMediaRequest(segments);
   } catch (error) {
-    const status = error instanceof PathValidationError ? 400 : 500;
-    return NextResponse.json({ error: 'Recurso inválido.' }, { status });
+    const status = error instanceof MediaRequestError ? error.status : 500;
+    const mensagem = status === 400 ? 'Recurso inválido.' : 'Recurso não encontrado.';
+    return NextResponse.json({ error: mensagem }, { status });
   }
 
   let info;
   try {
-    info = await stat(caminho);
+    info = await stat(recurso.absolutePath);
   } catch {
     return NextResponse.json({ error: 'Recurso não encontrado.' }, { status: 404 });
   }
@@ -54,50 +44,43 @@ export async function GET(request, { params }) {
   }
 
   const total = info.size;
-  const range = request.headers.get('range');
 
   const cabecalhosBase = {
-    'content-type': config.mime,
-    'cache-control': config.range ? 'private, max-age=3600' : 'private, max-age=86400, immutable',
-    'content-disposition': `inline; filename="${filename}"`,
+    'content-type': recurso.mime,
+    'cache-control': recurso.cacheControl,
+    'content-disposition': `inline; filename="${recurso.filename}"`,
     'x-content-type-options': 'nosniff',
-    ...(config.range ? { 'accept-ranges': 'bytes' } : {}),
+    ...(recurso.range ? { 'accept-ranges': 'bytes' } : {}),
   };
 
   // Requisição parcial: o player usa isso para buscar posição no vídeo.
-  if (range && config.range) {
-    const match = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
-    if (match) {
-      let inicio = match[1] === '' ? null : Number(match[1]);
-      let fim = match[2] === '' ? null : Number(match[2]);
+  if (recurso.range) {
+    const faixa = parseByteRange(request.headers.get('range'), total);
 
-      if (inicio === null && fim !== null) {
-        inicio = Math.max(0, total - fim);
-        fim = total - 1;
-      } else {
-        inicio = inicio ?? 0;
-        fim = fim === null ? total - 1 : Math.min(fim, total - 1);
-      }
-
-      if (!Number.isFinite(inicio) || !Number.isFinite(fim) || inicio > fim || inicio >= total) {
-        return new NextResponse(null, {
-          status: 416,
-          headers: { 'content-range': `bytes */${total}` },
-        });
-      }
-
-      return new NextResponse(toWebStream(createReadStream(caminho, { start: inicio, end: fim })), {
-        status: 206,
-        headers: {
-          ...cabecalhosBase,
-          'content-range': `bytes ${inicio}-${fim}/${total}`,
-          'content-length': String(fim - inicio + 1),
-        },
+    if (faixa === 'invalido') {
+      return new NextResponse(null, {
+        status: 416,
+        headers: { 'content-range': `bytes */${total}` },
       });
+    }
+
+    if (faixa) {
+      const { inicio, fim } = faixa;
+      return new NextResponse(
+        toWebStream(createReadStream(recurso.absolutePath, { start: inicio, end: fim })),
+        {
+          status: 206,
+          headers: {
+            ...cabecalhosBase,
+            'content-range': `bytes ${inicio}-${fim}/${total}`,
+            'content-length': String(fim - inicio + 1),
+          },
+        },
+      );
     }
   }
 
-  return new NextResponse(toWebStream(createReadStream(caminho)), {
+  return new NextResponse(toWebStream(createReadStream(recurso.absolutePath)), {
     status: 200,
     headers: { ...cabecalhosBase, 'content-length': String(total) },
   });

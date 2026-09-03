@@ -1,0 +1,404 @@
+{
+  "158": {
+    "_meta": {
+      "title": "Salvar Imagem"
+    },
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "Ideogram_4.0",
+      "images": [
+        "98:13",
+        0
+      ]
+    }
+  },
+  "37": {
+    "_meta": {
+      "title": "Seletor de Resolução"
+    },
+    "class_type": "ResolutionSelector",
+    "inputs": {
+      "aspect_ratio": "9:16 (Portrait Widescreen)",
+      "megapixels": 1,
+      "multiple": 8
+    }
+  },
+  "98:10": {
+    "_meta": {
+      "title": "CondicionamentoZerar"
+    },
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "98:24",
+        0
+      ]
+    }
+  },
+  "98:11": {
+    "_meta": {
+      "title": "Empty Flux 2 Latent"
+    },
+    "class_type": "EmptyFlux2LatentImage",
+    "inputs": {
+      "batch_size": 1,
+      "height": [
+        "98:32",
+        1
+      ],
+      "width": [
+        "98:31",
+        1
+      ]
+    }
+  },
+  "98:12": {
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "guider": [
+        "98:155",
+        0
+      ],
+      "latent_image": [
+        "98:11",
+        0
+      ],
+      "noise": [
+        "98:18",
+        0
+      ],
+      "sampler": [
+        "98:16",
+        0
+      ],
+      "sigmas": [
+        "98:17",
+        0
+      ]
+    }
+  },
+  "98:13": {
+    "_meta": {
+      "title": "VAE Decodificar"
+    },
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "98:12",
+        0
+      ],
+      "vae": [
+        "98:9",
+        0
+      ]
+    }
+  },
+  "98:14": {
+    "_meta": {
+      "title": "Carregar CLIP"
+    },
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_nvfp4.safetensors",
+      "device": "default",
+      "type": "ideogram4"
+    }
+  },
+  "98:144": {
+    "_meta": {
+      "title": "Conversão de Número"
+    },
+    "class_type": "ComfyNumberConvert",
+    "inputs": {
+      "value": [
+        "98:145",
+        0
+      ]
+    }
+  },
+  "98:145": {
+    "_meta": {
+      "title": "Extrair String do JSON"
+    },
+    "class_type": "JsonExtractString",
+    "inputs": {
+      "json_string": [
+        "98:148",
+        0
+      ],
+      "key": "mu"
+    }
+  },
+  "98:146": {
+    "_meta": {
+      "title": "Conversão de Número"
+    },
+    "class_type": "ComfyNumberConvert",
+    "inputs": {
+      "value": [
+        "98:150",
+        0
+      ]
+    }
+  },
+  "98:147": {
+    "_meta": {
+      "title": "Extrair String do JSON"
+    },
+    "class_type": "JsonExtractString",
+    "inputs": {
+      "json_string": "{\n  \"Quality\": {\n    \"num_steps\": 48,\n    \"mu\": 0.0,\n    \"std\": 1.5,\n    \"preset_id\": \"V4_QUALITY_48\"\n  },\n  \"Default\": {\n    \"num_steps\": 20,\n    \"mu\": 0.0,\n    \"std\": 1.75,\n    \"preset_id\": \"V4_DEFAULT_20\"\n  },\n  \"Turbo\": {\n    \"num_steps\": 12,\n    \"mu\": 0.5,\n    \"std\": 1.75,\n    \"preset_id\": \"V4_TURBO_12\"\n  }\n}",
+      "key": [
+        "98:156",
+        0
+      ]
+    }
+  },
+  "98:148": {
+    "_meta": {
+      "title": "Substituir"
+    },
+    "class_type": "StringReplace",
+    "inputs": {
+      "find": "'",
+      "replace": "\"",
+      "string": [
+        "98:147",
+        0
+      ]
+    }
+  },
+  "98:149": {
+    "_meta": {
+      "title": "Extrair String do JSON"
+    },
+    "class_type": "JsonExtractString",
+    "inputs": {
+      "json_string": [
+        "98:148",
+        0
+      ],
+      "key": "num_steps"
+    }
+  },
+  "98:150": {
+    "_meta": {
+      "title": "Extrair String do JSON"
+    },
+    "class_type": "JsonExtractString",
+    "inputs": {
+      "json_string": [
+        "98:148",
+        0
+      ],
+      "key": "std"
+    }
+  },
+  "98:151": {
+    "_meta": {
+      "title": "Conversão de Número"
+    },
+    "class_type": "ComfyNumberConvert",
+    "inputs": {
+      "value": [
+        "98:149",
+        0
+      ]
+    }
+  },
+  "98:154": {
+    "_meta": {
+      "title": "Carregar Modelo de Difusão"
+    },
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "ideogram4_nvfp4_mixed.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "98:155": {
+    "_meta": {
+      "title": "Orientador CFG de Dois Modelos"
+    },
+    "class_type": "DualModelGuider",
+    "inputs": {
+      "cfg": 7,
+      "model": [
+        "98:157",
+        0
+      ],
+      "model_negative": [
+        "98:154",
+        0
+      ],
+      "negative": [
+        "98:10",
+        0
+      ],
+      "positive": [
+        "98:24",
+        0
+      ]
+    }
+  },
+  "98:156": {
+    "_meta": {
+      "title": "Combo Personalizado"
+    },
+    "class_type": "CustomCombo",
+    "inputs": {
+      "choice": "Default",
+      "index": 1,
+      "option1": "Quality",
+      "option2": "Default",
+      "option3": "Turbo",
+      "option4": ""
+    }
+  },
+  "98:157": {
+    "_meta": {
+      "title": "Substituir CFG"
+    },
+    "class_type": "CFGOverride",
+    "inputs": {
+      "cfg": 3,
+      "end_percent": 1,
+      "model": [
+        "98:23",
+        0
+      ],
+      "start_percent": 0.7
+    }
+  },
+  "98:16": {
+    "_meta": {
+      "title": "KSamplerSelect"
+    },
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "98:17": {
+    "_meta": {
+      "title": "Agendador Ideogram 4"
+    },
+    "class_type": "Ideogram4Scheduler",
+    "inputs": {
+      "height": [
+        "98:32",
+        1
+      ],
+      "mu": [
+        "98:144",
+        0
+      ],
+      "std": [
+        "98:146",
+        0
+      ],
+      "steps": [
+        "98:151",
+        1
+      ],
+      "width": [
+        "98:31",
+        1
+      ]
+    }
+  },
+  "98:18": {
+    "_meta": {
+      "title": "Ruído Aleatório"
+    },
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 154477531654097
+    }
+  },
+  "98:23": {
+    "_meta": {
+      "title": "Carregar Modelo de Difusão"
+    },
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "ideogram4_nvfp4_mixed.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "98:24": {
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    },
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "98:14",
+        0
+      ],
+      "text": "\"A wide cinematic fantasy photograph of one golden wyvern peacefully flying above snowy mountains at sunrise.\""
+    }
+  },
+  "98:27": {
+    "_meta": {
+      "title": "Int (Width)"
+    },
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": [
+        "37",
+        0
+      ]
+    }
+  },
+  "98:28": {
+    "_meta": {
+      "title": "Int (Height)"
+    },
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": [
+        "37",
+        1
+      ]
+    }
+  },
+  "98:31": {
+    "_meta": {
+      "title": "Expressão Matemática"
+    },
+    "class_type": "ComfyMathExpression",
+    "inputs": {
+      "expression": "max(((a + 15) // 16) * 16, 256)",
+      "values.a": [
+        "98:27",
+        0
+      ]
+    }
+  },
+  "98:32": {
+    "_meta": {
+      "title": "Expressão Matemática"
+    },
+    "class_type": "ComfyMathExpression",
+    "inputs": {
+      "expression": "max(((a + 15) // 16) * 16, 256)",
+      "values.a": [
+        "98:28",
+        0
+      ]
+    }
+  },
+  "98:9": {
+    "_meta": {
+      "title": "Carregar VAE"
+    },
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    }
+  }
+}

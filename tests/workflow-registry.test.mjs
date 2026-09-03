@@ -62,14 +62,15 @@ test('getWorkflow devolve o descriptor correto', () => {
 
 test('hasWorkflow distingue conhecido de desconhecido', () => {
   assert.equal(hasWorkflow('minimax_h3_t2v'), true);
-  assert.equal(hasWorkflow('ideogram4_t2i'), false);
+  assert.equal(hasWorkflow('ideogram4_t2i'), true, 'o Ideogram passou a ser registrado no Passo 4');
+  assert.equal(hasWorkflow('workflow_inexistente'), false);
   assert.equal(hasWorkflow(''), false);
   assert.equal(hasWorkflow(null), false);
   assert.equal(hasWorkflow('../../etc/passwd'), false);
 });
 
 test('workflow desconhecido falha alto, e nunca cai em outro', () => {
-  for (const id of ['ideogram4_t2i', 'nao_existe', '', null, undefined, 42]) {
+  for (const id of ['workflow_inexistente', 'nao_existe', '', null, undefined, 42]) {
     assert.throws(
       () => getWorkflow(id),
       UnknownWorkflowError,
@@ -79,12 +80,12 @@ test('workflow desconhecido falha alto, e nunca cai em outro', () => {
 
   // A mensagem diz o que existe, para o erro ser acionável.
   try {
-    getWorkflow('ideogram4_t2i');
+    getWorkflow('workflow_inexistente');
     assert.fail('deveria ter lançado');
   } catch (erro) {
-    assert.match(erro.message, /Workflow desconhecido: "ideogram4_t2i"/);
+    assert.match(erro.message, /Workflow desconhecido: "workflow_inexistente"/);
     assert.match(erro.message, /minimax_h3_t2v/);
-    assert.deepEqual(erro.detail.conhecidos, ['minimax_h3_t2v']);
+    assert.deepEqual(erro.detail.conhecidos, ['minimax_h3_t2v', 'ideogram4_t2i']);
   }
 });
 
@@ -131,8 +132,9 @@ test('dois descriptors fictícios coexistem sem interferência', () => {
   assert.throws(() => registro.get('ficticio_a').validate(template), WorkflowError);
   assert.throws(() => registro.get('minimax_h3_t2v').validate({ 1: { class_type: 'CLIPTextEncode' } }), WorkflowError);
 
-  // E o registry da aplicação continua com só o workflow real.
-  assert.deepEqual(workflowRegistry.ids(), ['minimax_h3_t2v']);
+  // E o registry da aplicação continua só com os workflows reais — os
+  // fictícios acima vivem no registry local deste teste, não nele.
+  assert.deepEqual(workflowRegistry.ids(), ['minimax_h3_t2v', 'ideogram4_t2i']);
 });
 
 test('id duplicado é erro de construção, não a última definição vencendo', () => {
@@ -397,7 +399,7 @@ test('listWorkflows não dá alcance ao descriptor por dentro da lista', () => {
   lista.length = 0;
 
   // Nem o registry nem o descriptor sentiram nada.
-  assert.deepEqual(listWorkflows().map((w) => w.id), ['minimax_h3_t2v']);
+  assert.deepEqual(listWorkflows().map((w) => w.id), ['minimax_h3_t2v', 'ideogram4_t2i']);
   assert.deepEqual([...minimaxH3T2V.modes], modesOriginais);
 
   // E cada chamada devolve objetos novos.

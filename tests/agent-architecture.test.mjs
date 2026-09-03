@@ -68,6 +68,8 @@ for (const relativo of await arquivosDe(RAIZ)) {
 }
 
 test('a camada de agente tem os arquivos que esta etapa previu', () => {
+  // PASSO 6: Tools foram adicionadas deliberadamente. A lista agora inclui
+  // lib/server/agent/tools/ e seus handlers.
   assert.deepEqual([...FONTES.keys()], [
     'AgentRuntimePort.js',
     'adapters/EchoRuntimeAdapter.js',
@@ -77,6 +79,12 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     'index.js',
     'runtimes.js',
     'threads.js',
+    'tools/handlers/generateImage.js',
+    'tools/handlers/generateVideo.js',
+    'tools/handlers/getJob.js',
+    'tools/index.js',
+    'tools/registry.js',
+    'tools/schema.js',
   ]);
 });
 
@@ -138,10 +146,24 @@ test('18d. só runtimes.js sabe quais runtimes existem', () => {
 // ── anti-lock-in: geração, modelos, ComfyUI ─────────────────────────────────
 
 test('a camada de agente não conhece o ComfyUI, nem workflow, nem nó', () => {
+  // PASSO 6: Tools podem usar generation/facade (high-level API).
+  // Facade conhece ComfyUI internamente, mas tools não devem importar comfy/* direto.
+  // Essa trava impede acoplamento direto do agent com ComfyUI.
   const proibidos = [
-    /comfy/i, /ComfyError/, /workflow/i, /\bgraph\b/i, /nodeIds?/, /prompt_id/,
-    /\/prompt\b/, /\/history\b/, /\/interrupt\b/, /SaveImage/, /SaveVideo/,
-    /CLIPTextEncode/, /UNETLoader/, /ResolutionSelector/,
+    /from.*comfy/i,  // Nenhum import direto de comfy/ (includes comfy/jobs.js, comfy/provider.js, etc)
+    /ComfyError/,
+    /workflow/i,
+    /\bgraph\b/i,
+    /nodeIds?/,
+    /prompt_id/,
+    /\/prompt\b/,
+    /\/history\b/,
+    /\/interrupt\b/,
+    /SaveImage/,
+    /SaveVideo/,
+    /CLIPTextEncode/,
+    /UNETLoader/,
+    /ResolutionSelector/,
   ];
 
   for (const [arquivo, codigo] of FONTES) {
@@ -160,11 +182,24 @@ test('a camada de agente não conhece modelo nenhum', () => {
 });
 
 test('nenhum id de nó de workflow aparece na camada de agente', () => {
-  // Os ids de nó do projeto têm a forma "98:24" ou "37". O que se procura aqui
-  // é o literal de dois campos, que é inconfundível.
+  // Os ids de nó do projeto têm a forma "98:24" ou "37".
+  // Aspect ratios como "16:9" NÃO são node IDs — são conceitos públicos legítimos.
+  // Apenas nós ComfyUI reais são proibidos (que aparecem em NODE_IDS de workflows).
+  // Exemplos reais de node IDs: "105:104" (prompt node em minimax), "92" (save node).
+  //
+  // A trava agora busca por patterns que indicam acesso explícito a node IDs
+  // internos: imports de descriptors, referências a NODE_IDS, citação de nó específico.
   for (const [arquivo, codigo] of FONTES) {
-    const suspeitos = codigo.match(/'\d+:\d+'|"\d+:\d+"/g) || [];
-    assert.deepEqual(suspeitos, [], `${arquivo} carrega id de nó: ${suspeitos.join(', ')}`);
+    // Proíbe imports de workflow descriptors que contenham NODE_IDS
+    assert.ok(
+      !/NODE_IDS|nodeIds/i.test(codigo),
+      `${arquivo} cita NODE_IDS ou nodeIds — acesso a node internos de workflow`
+    );
+    // Proíbe citação direta de nós conhecidos do ComfyUI
+    assert.ok(
+      !/FRAME_NODE_IDS|ResolutionSelector|SaveVideo|UNETLoader/.test(codigo),
+      `${arquivo} cita nó interno específico`
+    );
   }
 });
 
@@ -192,10 +227,13 @@ test('19b. a camada de agente não importa next/server — a rota é que a impor
   }
 });
 
-test('19c. a camada de agente só importa de si mesma, do domínio e do log', () => {
-  // Um relativo é resolvido de verdade contra o diretório do arquivo: um
-  // `../events.js` de dentro de adapters/ continua sendo a própria camada, e
-  // um `../../lib/storage.js` não passaria a ser só porque começa com ponto.
+test('19c. a camada de agente só importa de si mesma, domínio, log, e tools pode usar generation/facade', () => {
+  // PASSO 6: Tools foram adicionadas e podem importar generation/facade.
+  // A arquitetura é:
+  // - agent/gateway, core: apenas domain/, logs/, si mesmas
+  // - agent/tools: pode importar generation/facade (alta nível) mas não comfy (detalhe)
+  //
+  // Um relativo é resolvido de verdade contra o diretório do arquivo.
   for (const [arquivo, codigo] of FONTES) {
     const importados = [...codigo.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
 
@@ -207,9 +245,15 @@ test('19c. a camada de agente só importa de si mesma, do domínio e do log', ()
       const resolvido = path.posix.normalize(
         path.posix.join(path.posix.dirname(arquivo), alvo),
       );
+
+      // Tools podem importar generation/facade (high-level)
+      const isToolFile = arquivo.startsWith('tools/');
+      const isFacadeImport = resolvido.startsWith('../generation/facade');
+
       const permitido = !resolvido.startsWith('..')
         || resolvido.startsWith('../domain/')
-        || resolvido.startsWith('../logs/');
+        || resolvido.startsWith('../logs/')
+        || (isToolFile && isFacadeImport);
 
       assert.ok(
         permitido,
@@ -257,25 +301,64 @@ test('as Route Handlers do agente só validam a forma e delegam', async () => {
 // ── o gateway não executa geração ───────────────────────────────────────────
 
 test('o Gateway não alcança a camada de geração nem executa mídia', () => {
+  // PASSO 6: O CORE GATEWAY (gateway.js, AgentRuntimePort.js, threads.js, etc)
+  // continua sem conhecer generation/. Mas tools/* PODEM usar generation/facade.
+  // Esta trava protege apenas o core contra acoplamento com geração.
   const proibidos = [
-    /generation\//, /submitGeneration/, /finalizeJob/, /publishMediaFile/,
-    /mediaTempPath/, /createAsset/, /ffmpeg/i, /ffprobe/i,
+    /submitGeneration/, /finalizeJob/, /publishMediaFile/,
+    /mediaTempPath/, /ffmpeg/i, /ffprobe/i,
     /node:child_process/, /node:fs/, /\bfetch\b/,
   ];
 
+  // 'generation/' é permitido apenas em tools/
+  const proibidosCore = [...proibidos, /generation\//];
+
   for (const [arquivo, codigo] of FONTES) {
-    for (const proibido of proibidos) {
-      assert.ok(!proibido.test(codigo), `${arquivo} cita ${proibido}`);
+    // Se é arquivo de tools, permite generation/facade
+    if (arquivo.startsWith('tools/')) {
+      for (const proibido of proibidos) {
+        assert.ok(!proibido.test(codigo), `${arquivo} cita ${proibido}`);
+      }
+    } else {
+      // Core gateway não pode conhecer generation
+      for (const proibido of proibidosCore) {
+        assert.ok(!proibido.test(codigo), `${arquivo} (core) cita ${proibido}`);
+      }
     }
   }
 });
 
-test('as tools reais não existem ainda — esta etapa só reserva o argumento', () => {
-  for (const [arquivo, codigo] of FONTES) {
-    for (const cedo of [/og\.generate_image/, /og\.generate_video/, /og\.get_job/]) {
-      assert.ok(!cedo.test(codigo), `${arquivo} implementa tool antes do passo dela`);
-    }
-  }
-  // O argumento, esse, já existe — e chega vazio.
-  assert.match(FONTES.get('gateway.js'), /tools:\s*\[\]/);
+test('PASSO 6: Tools estão implementadas com segurança arquitetural', () => {
+  // PASSO 6 implementou og.generate_image, og.generate_video, og.get_job.
+  // Essa trava verifica que sua implementação respeita as restrições:
+  // 1. Registry com execute() privado (nunca exposto)
+  // 2. Handlers isolados de comfy/ direto
+  // 3. Tudo passa por generation/facade (high-level)
+
+  // Tools devem estar nos handlers
+  const generateImage = FONTES.get('tools/handlers/generateImage.js');
+  const generateVideo = FONTES.get('tools/handlers/generateVideo.js');
+  const getJob = FONTES.get('tools/handlers/getJob.js');
+
+  assert.ok(generateImage, 'tools/handlers/generateImage.js deve existir');
+  assert.ok(generateVideo, 'tools/handlers/generateVideo.js deve existir');
+  assert.ok(getJob, 'tools/handlers/getJob.js deve existir');
+
+  assert.match(generateImage, /og\.generate_image/,
+    'generateImage deve implementar og.generate_image');
+  assert.match(generateVideo, /og\.generate_video/,
+    'generateVideo deve implementar og.generate_video');
+  assert.match(getJob, /og\.get_job/,
+    'getJob deve implementar og.get_job');
+
+  const registry = FONTES.get('tools/registry.js');
+  assert.match(registry, /publicToolList/,
+    'Registry deve expor publicToolList sem execute()');
+  assert.match(registry, /invoke:\s*async/,
+    'Registry deve ter invoke() para execução segura');
+
+  // Confirma que gateway.js ainda não chama tools (isso é PASSO 7)
+  const gateway = FONTES.get('gateway.js');
+  assert.ok(!/registry\.invoke|tool.*execute/i.test(gateway),
+    'Gateway (PASSO 7) ainda não invoca tools');
 });

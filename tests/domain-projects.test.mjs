@@ -175,3 +175,129 @@ test('nenhuma criação implícita de projeto na superfície pública', async ()
   const criadores = Object.keys(barril).filter((n) => /^(ensure|getOrCreate|upsert)/.test(n));
   assert.deepEqual(criadores, [], `criação implícita exposta: ${criadores.join(', ')}`);
 });
+
+// ── registro explícito de um projeto que o usuário já tem ───────────────────
+
+test('registerProject cria quando falta e devolve o existente quando há', async () => {
+  const { registerProject } = await import('../lib/server/domain/projects.js');
+  const db = openDatabase(':memory:');
+
+  const primeira = registerProject({ id: 'proj_studio', name: 'Curta noir', aspect: '21:9' }, db);
+  assert.equal(primeira.criado, true);
+  assert.equal(primeira.project.name, 'Curta noir');
+  assert.equal(primeira.project.aspect, '21:9');
+
+  const segunda = registerProject({ id: 'proj_studio', name: 'Curta noir' }, db);
+  assert.equal(segunda.criado, false);
+  assert.equal(segunda.project.id, primeira.project.id);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM projects').get().n, 1);
+});
+
+test('registerProject NÃO sobrescreve metadata de um projeto já cadastrado', async () => {
+  const { registerProject } = await import('../lib/server/domain/projects.js');
+  const db = openDatabase(':memory:');
+  createProject({ id: 'proj_studio', name: 'Nome de verdade', aspect: '16:9' }, db);
+
+  const { criado, project } = registerProject(
+    { id: 'proj_studio', name: 'Nome da tela', aspect: '9:16', description: 'outra' }, db,
+  );
+
+  assert.equal(criado, false);
+  assert.equal(project.name, 'Nome de verdade');
+  assert.equal(project.aspect, '16:9');
+});
+
+test('registerProject exige um DESCRITOR, não um id solto', async () => {
+  // É esta exigência que impede a operação de virar porta de criação genérica:
+  // quem chama precisa saber o que está registrando, e não só repetir um
+  // identificador que recebeu de fora.
+  const { registerProject } = await import('../lib/server/domain/projects.js');
+  const db = openDatabase(':memory:');
+
+  for (const ruim of [undefined, null, 'proj_x', 42, {}, { id: 'proj_x' },
+    { id: 'proj_x', name: '   ' }, { name: 'Sem id' }]) {
+    assert.throws(() => registerProject(ruim, db), DomainError,
+      `${JSON.stringify(ruim)} deveria ser recusado`);
+  }
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM projects').get().n, 0);
+});
+
+test('registerProject valida o id como qualquer projeto', async () => {
+  const { registerProject } = await import('../lib/server/domain/projects.js');
+  const db = openDatabase(':memory:');
+  for (const id of ['com barra/', 'com espaço', 'a'.repeat(80), 'com.ponto']) {
+    assert.throws(() => registerProject({ id, name: 'X' }, db));
+  }
+});
+
+test('registerProject é público; ensureProject continua fora do barril', async () => {
+  const barril = await import('../lib/server/domain/index.js');
+  const modulo = await import('../lib/server/domain/projects.js');
+
+  assert.equal(typeof barril.registerProject, 'function',
+    'o registro explícito deveria ser público');
+  assert.equal(barril.ensureProject, undefined,
+    'ensureProject voltou ao barril');
+  assert.equal(typeof modulo.ensureProject, 'function');
+});
+
+test('ensureProject só é usado pelo backfill em código de produção', async () => {
+  // Ele cria a partir de um id solto, e isso só faz sentido onde não existe
+  // descritor a consultar: as pastas em runtime/projects/ precedem o banco.
+  const { readdir, readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const RAIZ = new URL('../lib/', import.meta.url).pathname;
+
+  const varrer = async (dir) => {
+    const saida = [];
+    for (const entrada of await readdir(dir, { withFileTypes: true })) {
+      const completo = path.join(dir, entrada.name);
+      if (entrada.isDirectory()) saida.push(...await varrer(completo));
+      else if (entrada.name.endsWith('.js')) saida.push(completo);
+    }
+    return saida;
+  };
+
+  const permitidos = ['domain/projects.js', 'domain/backfill.js'];
+
+  for (const arquivo of await varrer(RAIZ)) {
+    const relativo = arquivo.slice(RAIZ.length);
+    if (permitidos.some((p) => relativo.endsWith(p))) continue;
+
+    const codigo = (await readFile(arquivo, 'utf8'))
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
+
+    assert.equal(/\bensureProject\b/.test(codigo), false,
+      `${relativo} alcança ensureProject`);
+  }
+});
+
+test('as tools do modelo não conseguem materializar projeto', async () => {
+  // A tool recebe um contexto com projectId já resolvido pelo servidor. Se ela
+  // pudesse criar projetos, o modelo escolheria onde a geração acontece.
+  const { readdir, readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const dir = new URL('../lib/server/agent/tools/', import.meta.url).pathname;
+
+  const varrer = async (raiz) => {
+    const saida = [];
+    for (const entrada of await readdir(raiz, { withFileTypes: true })) {
+      const completo = path.join(raiz, entrada.name);
+      if (entrada.isDirectory()) saida.push(...await varrer(completo));
+      else if (entrada.name.endsWith('.js')) saida.push(completo);
+    }
+    return saida;
+  };
+
+  const arquivos = await varrer(dir);
+  assert.ok(arquivos.length > 0);
+
+  for (const arquivo of arquivos) {
+    const codigo = await readFile(arquivo, 'utf8');
+    for (const proibido of ['ensureProject', 'registerProject', 'createProject']) {
+      assert.equal(codigo.includes(proibido), false,
+        `${path.basename(arquivo)} alcança ${proibido}`);
+    }
+  }
+});

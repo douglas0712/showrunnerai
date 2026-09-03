@@ -317,6 +317,8 @@ test('as Route Handlers do agente só validam a forma e delegam', async () => {
   const rotas = await arquivosDe(RAIZ_ROTAS);
   assert.deepEqual(rotas, [
     'messages/route.js',
+    // PASSO 8: o mesmo turno, evento a evento. Continua sem regra dentro dela.
+    'stream/route.js',
     'threads/[threadId]/route.js',
     'threads/route.js',
   ]);

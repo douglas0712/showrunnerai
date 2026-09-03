@@ -24,7 +24,8 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
     .filter((n) => !n.startsWith('sqlite_'));
 
   assert.deepEqual(tabelas, [
-    'agent_messages', 'agent_threads', 'assets', 'projects', 'runtime_sessions', 'scenes',
+    'agent_message_assets', 'agent_messages', 'agent_threads', 'assets',
+    'projects', 'runtime_sessions', 'scenes',
   ]);
   db.close();
 });
@@ -39,7 +40,8 @@ test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () =
   // deixá-la para trás faria a reexecução esbarrar numa tabela já existente —
   // um artefato do teste, não do esquema.
   antigo.exec(
-    'DROP TABLE runtime_sessions; DROP TABLE agent_messages; DROP TABLE agent_threads; '
+    'DROP TABLE agent_message_assets; DROP TABLE runtime_sessions; '
+    + 'DROP TABLE agent_messages; DROP TABLE agent_threads; '
     + 'PRAGMA user_version = 1',
   );
   antigo.prepare(`

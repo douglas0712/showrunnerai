@@ -113,7 +113,7 @@ test('13. o gateway chama o runtime, com o contrato completo', async () => {
 
   assert.deepEqual(
     Object.keys(argumentos).sort(),
-    ['context', 'messages', 'signal', 'thread', 'tools'],
+    ['context', 'invokeTool', 'messages', 'signal', 'thread', 'tools'],
   );
   assert.equal(argumentos.thread.id, thread.id);
   assert.equal(argumentos.thread.projectId, 'proj_sinal');
@@ -127,7 +127,16 @@ test('13. o gateway chama o runtime, com o contrato completo', async () => {
   });
 
   // 24 · a coleção de tools chega vazia, provando que o argumento já existe.
-  assert.deepEqual(argumentos.tools, []);
+  // PASSO 6: tools agora é preenchido com publicToolList()
+  assert.ok(Array.isArray(argumentos.tools), 'tools deve ser um array');
+  assert.equal(argumentos.tools.length, 3, 'PASSO 6 fornece 3 ferramentas públicas');
+  // Verifica que cada tool tem os campos corretos (sem execute)
+  for (const tool of argumentos.tools) {
+    assert.ok(tool.name, `tool deve ter name: ${JSON.stringify(tool)}`);
+    assert.ok(tool.description, `tool deve ter description`);
+    assert.ok(tool.inputSchema, `tool deve ter inputSchema`);
+    assert.ok(!tool.execute, `tool não deve expor execute`);
+  }
   assert.equal(argumentos.signal, null);
 
   db.close();

@@ -100,6 +100,7 @@ test('18. o Gateway não conhece nenhum runtime pelo nome — nem o Echo', () =>
   }
 
   // A única coisa que ele importa sobre runtimes é o contrato e a fábrica.
+  // PASSO 6: Importa tools/index.js para publicToolList e toolRegistry.
   const importados = [...gateway.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(importados.sort(), [
     '../domain/db.js',
@@ -110,6 +111,7 @@ test('18. o Gateway não conhece nenhum runtime pelo nome — nem o Echo', () =>
     './events.js',
     './runtimes.js',
     './threads.js',
+    './tools/index.js',
   ]);
 });
 

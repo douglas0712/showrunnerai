@@ -365,16 +365,22 @@ test('as duas raízes continuam separadas e independentes', () => {
 
 test('a descoberta da raiz não para no package.json da build do Next', async () => {
   const { readFile } = await import('node:fs/promises');
+  // A descoberta mora em lib/server/appRoot.js, consumida por paths.js e por
+  // comfy/config.js — uma fonte de verdade só.
   const fonte = await readFile(
-    new URL('../lib/server/generation/workflows/paths.js', import.meta.url), 'utf8',
+    new URL('../lib/server/appRoot.js', import.meta.url), 'utf8',
   );
 
   // O `.next/package.json` gerado pela build tem só {"type":"commonjs"}; a
   // exigência de um `name` é o que impede a busca de parar lá.
   assert.match(fonte, /typeof pkg\?\.name === 'string'/);
-  assert.ok(!/process\.cwd\(\), 'workflows'/.test(fonte), 'a raiz voltou a ser derivada do cwd');
-  // E nenhum caminho de máquina foi codificado para o projeto.
-  assert.ok(!/showrunner-studio/.test(fonte), 'caminho do projeto codificado em paths.js');
+  assert.ok(!/showrunner-studio/.test(fonte), 'caminho do projeto codificado');
+
+  const dePaths = await readFile(
+    new URL('../lib/server/generation/workflows/paths.js', import.meta.url), 'utf8',
+  );
+  assert.ok(!/process\.cwd\(\), 'workflows'/.test(dePaths), 'a raiz voltou a ser derivada do cwd');
+  assert.ok(!/readFileSync/.test(dePaths), 'a descoberta foi duplicada em paths.js');
 });
 
 test('a contenção de caminho vale igual na raiz do projeto', () => {

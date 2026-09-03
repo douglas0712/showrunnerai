@@ -91,6 +91,7 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     'hermes/bridge.js',
     'hermes/eventTranslator.js',
     'hermes/httpClient.js',
+    'hermes/identity.js',
     'hermes/sessionBinding.js',
     'hermes/sseParser.js',
     'httpApi.js',

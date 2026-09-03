@@ -51,6 +51,12 @@ function fetchFalso({ roteiro = '', sessionToolsets = [...TOOLSETS_OBRIGATORIOS]
       return json({ session: { session_id: 'sess_abc123', enabled_toolsets: sessionToolsets } });
     }
 
+    // PASSO 8.2: toda sessão recebe a identidade do Showrunner antes do
+    // primeiro turno. Sem isto o adaptador recusa a sessão — de propósito.
+    if (caminho === '/api/personality/set') {
+      return json({ ok: true, personality: corpo?.name ?? null });
+    }
+
     if (caminho === '/api/chat/start') {
       return json({ stream_id: 'stream_xyz', session_id: corpo?.session_id });
     }

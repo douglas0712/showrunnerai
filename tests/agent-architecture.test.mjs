@@ -101,6 +101,11 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     'tools/handlers/generateVideo.js',
     'tools/handlers/getJob.js',
     'tools/index.js',
+    // PASSO 9: o acompanhamento de uma geração depois que o turno acabou. Vive
+    // em tools/ porque é a continuação do que uma ferramenta começou — e
+    // porque tools/ é a única parte desta camada que pode alcançar
+    // generation/facade, que é o que um acompanhamento precisa consultar.
+    'tools/jobWatch.js',
     'tools/registry.js',
     'tools/schema.js',
   ]);

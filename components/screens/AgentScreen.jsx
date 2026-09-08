@@ -7,9 +7,19 @@ import { ImageFrame } from '../ui/MediaFrame';
 import { RealVideoPlayer } from '../ui/RealVideoPlayer';
 import { Icon } from '../ui/icons';
 import {
-  aplicarEvento, ensureThread, friendlyError, lembrarThread, novaResposta,
-  semUrlsJaExibidas, startNewThread, streamTurn, threadLembrada,
+  aplicarEvento, ensureThread, fetchThread, friendlyError, labelForProduction,
+  lembrarThread, novaResposta, producaoEmCurso, semUrlsJaExibidas, startNewThread,
+  streamTurn, threadLembrada,
 } from '@/lib/agentClient';
+
+/**
+ * De quanto em quanto tempo a tela relê a conversa enquanto há produção.
+ *
+ * É atualização de TELA, e só isso. A geração é levada até o fim pelo servidor
+ * e andaria igual se esta tela estivesse fechada — o que muda aqui é só quando
+ * o resultado aparece, não se ele vai aparecer.
+ */
+const INTERVALO_ATUALIZACAO_MS = 3000;
 
 /**
  * A conversa com o Showrunner.
@@ -30,6 +40,10 @@ export default function AgentScreen() {
   const [semProjeto, setSemProjeto] = useState(false);
   const [draft, setDraft] = useState('');
   const [abrindoNova, setAbrindoNova] = useState(false);
+  // O que esta conversa tem em produção agora. Vem do servidor, que é quem
+  // sabe: o turno acaba muito antes de a mídia existir.
+  const [producao, setProducao] = useState([]);
+  const [tique, setTique] = useState(0);
 
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
@@ -50,7 +64,7 @@ export default function AgentScreen() {
         // O ponteiro é POR PROJETO, e quem sabe montar a chave é o cliente.
         const salvo = threadLembrada(activeProjectId);
 
-        const { thread, messages: historico } = await ensureThread({
+        const { thread, messages: historico, production } = await ensureThread({
           threadId: salvo,
           project: descritorDoProjeto(activeProject),
         });
@@ -60,6 +74,9 @@ export default function AgentScreen() {
         setThreadId(thread.id);
         setSemProjeto(!thread.projectId);
         setMessages(historico.map(paraTela));
+        // Recarregar a página no meio de uma geração não interrompe nada: o
+        // trabalho é do servidor. A tela apenas volta a saber que ele existe.
+        setProducao(production || []);
         lembrarThread(activeProjectId, thread.id);
       } catch (falha) {
         if (!cancelado) setErroDeAbertura(friendlyError(falha));
@@ -77,6 +94,51 @@ export default function AgentScreen() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages.length, emCurso?.text, emCurso?.activity?.length]);
+
+  /**
+   * Relê a conversa uma vez.
+   *
+   * As mensagens só são substituídas quando alguma produção CONCLUIU ou quando
+   * não sobrou nenhuma em andamento — que é quando existe mídia nova para
+   * mostrar. Substituí-las a cada leitura apagaria, a cada três segundos, a
+   * lista do que o Showrunner acabou de fazer no turno; e reescrever a conversa
+   * inteira para descobrir que nada mudou é trabalho à toa.
+   */
+  const relerConversa = useCallback(async (alvo) => {
+    const dados = await fetchThread({ threadId: alvo });
+    if (!dados) return;
+
+    const concluiuAlgo = dados.production.some((item) => item.state === 'concluido');
+    setProducao(dados.production);
+    if (concluiuAlgo || !producaoEmCurso(dados.production)) {
+      setMessages(dados.messages.map(paraTela));
+    }
+  }, []);
+
+  /**
+   * Enquanto há trabalho em produção, a tela se atualiza sozinha.
+   *
+   * Isto NÃO é o que faz a geração progredir — quem faz é o acompanhamento do
+   * servidor. Se este laço nunca rodasse, a imagem ficaria pronta na mesma
+   * hora; ela só demoraria mais para aparecer. É a diferença entre uma tela que
+   * observa e uma tela que dirige, e nesta arquitetura ela observa.
+   *
+   * Fica parado durante um turno: enquanto o Showrunner responde, quem manda
+   * na tela é o fluxo de eventos do próprio turno.
+   */
+  useEffect(() => {
+    if (!threadId || emCurso || !producaoEmCurso(producao)) return undefined;
+
+    let vivo = true;
+    const relogio = setTimeout(async () => {
+      await relerConversa(threadId);
+      // O tique continua o laço mesmo quando a leitura falha: uma atualização
+      // perdida não pode encerrar o acompanhamento da tela.
+      if (vivo) setTique((n) => n + 1);
+    }, INTERVALO_ATUALIZACAO_MS);
+
+    return () => { vivo = false; clearTimeout(relogio); };
+  }, [threadId, emCurso, producao, tique, relerConversa]);
 
   const enviar = useCallback(async (texto) => {
     const content = String(texto ?? '').trim();
@@ -126,6 +188,12 @@ export default function AgentScreen() {
       const vazia = !resposta.text && !resposta.media.length && !resposta.error;
       setEmCurso(null);
       if (!vazia) setMessages((atuais) => [...atuais, resposta]);
+
+      // O turno acabou, mas o trabalho que ele começou pode não ter acabado.
+      // Só a produção é lida aqui: as mensagens continuam as da tela, com a
+      // lista do que o Showrunner acabou de fazer ainda visível.
+      const dados = await fetchThread({ threadId });
+      if (dados) setProducao(dados.production);
     }
   }, [threadId]);
 
@@ -171,6 +239,10 @@ export default function AgentScreen() {
       setSemProjeto(!thread.projectId);
       setMessages([]);
       setEmCurso(null);
+      // A produção que a conversa ANTERIOR começou continua acontecendo no
+      // servidor, e o resultado dela vai parar lá, na mensagem que a pediu.
+      // Ela some daqui porque esta é outra conversa — não porque foi cancelada.
+      setProducao([]);
       setDraft('');
       setErroDeAbertura(null);
       inputRef.current?.focus();
@@ -245,6 +317,9 @@ export default function AgentScreen() {
 
           {emCurso ? <Message message={emCurso} emCurso /> : null}
 
+          {/* O que continua sendo produzido depois de o turno ter acabado. */}
+          {!emCurso && producao.length ? <Producao itens={producao} /> : null}
+
           <div ref={bottomRef} />
         </div>
 
@@ -295,6 +370,40 @@ function descritorDoProjeto(project) {
     description: project.description || '',
     aspect: project.aspect || undefined,
   };
+}
+
+/**
+ * O que ainda está sendo produzido nesta conversa.
+ *
+ * Fala em linguagem de produção — "Gerando imagem…", "Finalizando…" — e não
+ * carrega nada de mecanismo: nem identificador de trabalho, nem estado interno,
+ * nem de onde a mídia vai sair. Uma produção concluída não aparece aqui, porque
+ * o resultado dela já está na conversa e fala por si.
+ *
+ * Isto não é fala do Showrunner: é estado do produto. Nenhuma frase daqui vira
+ * mensagem da conversa nem é atribuída ao agente.
+ */
+function Producao({ itens }) {
+  const visiveis = itens
+    .map((item) => ({ ...item, rotulo: labelForProduction(item) }))
+    .filter((item) => item.rotulo);
+
+  if (!visiveis.length) return null;
+
+  return (
+    <ul className="fade-up space-y-1 pl-11">
+      {visiveis.map((item) => (
+        <li key={item.id} className="flex items-center gap-2 text-[11.5px]">
+          <span className={item.state === 'falhou' ? 'text-danger' : 'text-gold'}>
+            <Icon name={item.state === 'falhou' ? 'close' : 'spark'} size={12} />
+          </span>
+          <span className={item.state === 'falhou' ? 'text-danger' : 'pulse-soft text-mist'}>
+            {item.rotulo}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 /** Uma mensagem da conversa: texto, o que está sendo feito, e a mídia. */

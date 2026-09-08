@@ -138,10 +138,12 @@ test('o resultado de ferramenta que atravessa é só o público', async () => {
   const concluida = blocos.find((b) => b.event === AGENT_EVENTS.TOOL_COMPLETED);
   assert.equal(concluida.data.result.asset.mediaUrl, '/api/media/image/p/x.png');
 
-  // E nada de disco, workflow ou provider no que atravessou.
+  // E nada de disco, workflow, provider — nem o identificador do trabalho, que
+  // é nome de coisa nossa e a tela nunca usou.
   const texto = JSON.stringify(blocos).toLowerCase();
   for (const proibido of ['hermes', 'session_id', 'stream_id', 'no_mcp', 'toolset',
-    'comfy', 'workflowid', 'promptid', '/runtime/', 'ideogram']) {
+    'comfy', 'workflowid', 'promptid', '/runtime/', 'ideogram',
+    'jobid', 'job_1', 'concluido']) {
     assert.equal(texto.includes(proibido.toLowerCase()), false, `"${proibido}" vazou`);
   }
 });

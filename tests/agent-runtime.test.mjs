@@ -23,6 +23,7 @@ import {
 import { createEchoRuntime } from '../lib/server/agent/adapters/EchoRuntimeAdapter.js';
 import {
   availableRuntimeIds, configuredRuntimeId, createRuntime, DEFAULT_RUNTIME_ID,
+  isTestRuntimeId, TEST_RUNTIME_IDS,
 } from '../lib/server/agent/runtimes.js';
 
 const RELOGIO_FIXO = () => 1_700_000_000_000;
@@ -339,15 +340,64 @@ test('25f. o payload de erro é sempre message + code, nunca a exceção crua', 
 
 // ── seleção de runtime ──────────────────────────────────────────────────────
 
-test('17a. o echo continua sendo o padrão, mesmo com o runtime dedicado disponível', () => {
-  // PASSO 7B acrescentou 'hermes'. O padrão NÃO mudou junto: trocar o runtime
-  // é decisão de operador, por variável de ambiente, e uma instalação que não
-  // decidiu nada continua no piso determinístico.
-  assert.deepEqual(availableRuntimeIds(), ['echo', 'hermes']);
-  assert.equal(DEFAULT_RUNTIME_ID, 'echo');
-  assert.equal(configuredRuntimeId(), 'echo');
-  assert.equal(createRuntime().id, 'echo');
+test('17a-A. sem variável nenhuma, a superfície real usa o runtime de raciocínio', () => {
+  // O DEFEITO que este teste tranca: o padrão era 'echo', e uma instalação que
+  // não configurou nada respondia "Recebi: …" na tela do usuário como se fosse
+  // o produto. O piso determinístico continua existindo — ele só não é mais o
+  // destino de quem não escolheu.
+  const salvo = process.env.SHOWRUNNER_AGENT_RUNTIME;
+  delete process.env.SHOWRUNNER_AGENT_RUNTIME;
+  try {
+    assert.deepEqual(availableRuntimeIds(), ['echo', 'hermes']);
+    assert.equal(DEFAULT_RUNTIME_ID, 'hermes');
+    assert.equal(configuredRuntimeId(), 'hermes');
+    assert.equal(createRuntime().id, 'hermes');
+  } finally {
+    if (salvo === undefined) delete process.env.SHOWRUNNER_AGENT_RUNTIME;
+    else process.env.SHOWRUNNER_AGENT_RUNTIME = salvo;
+  }
+});
+
+test('17a-B. runtime de raciocínio sem configuração é indisponível — e NÃO vira echo', () => {
+  // Fail-closed: a ausência de configuração não é motivo para promover o piso
+  // de teste. O turno não começa, e quem chamou recebe indisponível.
+  const salvo = process.env.SHOWRUNNER_AGENT_RUNTIME;
+  const salvaUrl = process.env.SHOWRUNNER_HERMES_URL;
+  delete process.env.SHOWRUNNER_AGENT_RUNTIME;
+  delete process.env.SHOWRUNNER_HERMES_URL;
+  try {
+    const runtime = createRuntime();
+    assert.notEqual(runtime.id, 'echo');
+    assert.equal(runtime.isAvailable(), false);
+    assert.throws(() => assertRuntimeAvailable(runtime), RuntimeUnavailableError);
+  } finally {
+    if (salvo === undefined) delete process.env.SHOWRUNNER_AGENT_RUNTIME;
+    else process.env.SHOWRUNNER_AGENT_RUNTIME = salvo;
+    if (salvaUrl === undefined) delete process.env.SHOWRUNNER_HERMES_URL;
+    else process.env.SHOWRUNNER_HERMES_URL = salvaUrl;
+  }
+});
+
+test('17a-C. o echo continua construível — mas só quando pedido pelo nome', () => {
+  // O Echo não sai do projeto e não perde nenhuma garantia: ele continua sendo
+  // o que a suíte usa para exercitar gateway, eventos e persistência sem rede.
+  assert.deepEqual(TEST_RUNTIME_IDS, ['echo']);
+  assert.equal(isTestRuntimeId('echo'), true);
+  assert.equal(isTestRuntimeId('hermes'), false);
+
   assert.equal(createRuntime('echo').id, 'echo');
+
+  // E, pela configuração explícita do operador, também. Explícito é o ponto:
+  // ninguém chega nele por omissão.
+  const salvo = process.env.SHOWRUNNER_AGENT_RUNTIME;
+  process.env.SHOWRUNNER_AGENT_RUNTIME = 'echo';
+  try {
+    assert.equal(configuredRuntimeId(), 'echo');
+    assert.equal(createRuntime().id, 'echo');
+  } finally {
+    if (salvo === undefined) delete process.env.SHOWRUNNER_AGENT_RUNTIME;
+    else process.env.SHOWRUNNER_AGENT_RUNTIME = salvo;
+  }
 });
 
 test('17a-bis. o runtime dedicado nasce indisponível sem configuração', () => {

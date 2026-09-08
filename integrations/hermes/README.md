@@ -69,10 +69,39 @@ Do lado do **Showrunner**:
 
 | Variável | Para quê |
 |---|---|
-| `SHOWRUNNER_AGENT_RUNTIME=hermes` | escolhe este runtime |
 | `SHOWRUNNER_HERMES_URL` | onde o runtime dedicado escuta |
 | `SHOWRUNNER_HERMES_TOKEN` | a credencial; igual ao token do runtime |
 | `SHOWRUNNER_BRIDGE_SOCKET` | caminho do socket; lido pelo Showrunner **e** pelo plugin |
+| `SHOWRUNNER_AGENT_RUNTIME` | **opcional**; só para escolher OUTRO runtime |
+
+Num `.env.local` na raiz do projeto, que o Next carrega e o Git ignora.
+
+### Qual runtime a superfície real usa
+
+Este é o padrão. `SHOWRUNNER_AGENT_RUNTIME` não precisa ser definida — ela
+existe para o caso contrário, o de escolher outra coisa.
+
+Era ao contrário, e o preço apareceu na tela: o padrão era o `echo`, o runtime
+determinístico de teste, e uma instalação sem variável nenhuma respondia
+`Recebi: <a fala do usuário>` a tudo, com cara de produto funcionando. O padrão
+mudou, e a regra agora é **fail-closed**:
+
+| Situação | O que acontece |
+|---|---|
+| runtime configurado e no ar | ele responde |
+| `SHOWRUNNER_HERMES_URL` ausente | o turno **não começa**: 503, `runtime_unavailable` |
+| configurado, mas fora do ar | o turno não começa: 503, `runtime_unavailable` |
+| caiu no meio da resposta | 502, `agent_turn_failed` — o turno foi perdido de verdade |
+
+Em todos os casos de falha a superfície pública devolve uma única frase — "O
+assistente de criação está temporariamente indisponível." — sem `detail`, sem o
+id do adaptador e sem o texto de operador. O diagnóstico fica no log do
+servidor e em `runtimeDiagnostics()`.
+
+O `echo` continua no projeto e continua sendo o piso da suíte. O que ele não é
+mais é o destino de quem não escolheu nada: chega-se a ele pelo nome
+(`createRuntime('echo')`) ou por `SHOWRUNNER_AGENT_RUNTIME=echo`, que é
+registrado como aviso no log a cada construção.
 
 Do lado do **runtime dedicado**:
 

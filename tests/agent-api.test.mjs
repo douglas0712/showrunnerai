@@ -14,9 +14,12 @@ import assert from 'node:assert/strict';
 import { openDatabase } from '../lib/server/domain/db.js';
 import { createProject } from '../lib/server/domain/projects.js';
 import { createEchoRuntime } from '../lib/server/agent/adapters/EchoRuntimeAdapter.js';
-import { assertRuntimePort } from '../lib/server/agent/AgentRuntimePort.js';
+import {
+  assertRuntimePort, RuntimeUnavailableError,
+} from '../lib/server/agent/AgentRuntimePort.js';
 import {
   handleCreateThread, handleGetThread, handleListThreads, handleSendMessage,
+  handleStreamMessage, MENSAGEM_AGENTE_INDISPONIVEL,
 } from '../lib/server/agent/httpApi.js';
 
 const ambiente = () => ({ db: openDatabase(':memory:'), runtime: createEchoRuntime() });
@@ -132,12 +135,14 @@ test('21c. corpo inválido vira 400 sem chegar ao runtime', async () => {
   deps.db.close();
 });
 
-test('21d. runtime indisponível vira 503, e o turno não começa', async () => {
+test('21d. runtime indisponível vira 503 com a frase do produto, e o turno não começa', async () => {
   const db = openDatabase(':memory:');
   const desligado = assertRuntimePort({
-    id: 'desligado',
+    id: 'hermes',
     isAvailable: () => false,
-    unavailableReason: () => 'O agente não está configurado nesta instalação.',
+    // O texto de OPERADOR: nomeia a variável que falta. Ele serve ao log e ao
+    // diagnóstico — e é exatamente o que não pode chegar ao navegador.
+    unavailableReason: () => 'O agente não está configurado: falta SHOWRUNNER_HERMES_URL.',
     testConnection: async () => ({ ok: false }),
     run: async function* () { yield null; },
   });
@@ -146,8 +151,120 @@ test('21d. runtime indisponível vira 503, e o turno não começa', async () => 
   const r = await handleSendMessage({ threadId: thread.id, content: 'Olá' }, { db, runtime: desligado });
 
   assert.equal(r.status, 503);
-  assert.match(r.body.error, /não está configurado/);
+  assert.equal(r.body.error, MENSAGEM_AGENTE_INDISPONIVEL);
+
+  // Nem o texto de operador, nem o id do adaptador, nem `detail`.
+  const corpo = JSON.stringify(r.body);
+  assert.ok(!/SHOWRUNNER_HERMES_URL/.test(corpo), corpo);
+  assert.ok(!/hermes/i.test(corpo), corpo);
+  assert.equal(r.body.detail, undefined);
+
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM agent_messages').get().n, 0);
+
+  db.close();
+});
+
+test('21d-B. o agente indisponível NÃO cai em eco: nada de "Recebi:" na superfície', async () => {
+  // O defeito real: com o agente fora do ar, a tela respondia "Recebi: <a
+  // própria fala do usuário>" e parecia funcionar. Fail-closed é o contrário
+  // disso — sem agente, não há resposta, e a conversa não ganha linha nenhuma
+  // de assistente.
+  const db = openDatabase(':memory:');
+  const desligado = assertRuntimePort({
+    id: 'hermes',
+    isAvailable: () => false,
+    unavailableReason: () => 'sem endereço configurado',
+    testConnection: async () => ({ ok: false }),
+    run: async function* () { throw new Error('não deveria ser chamado'); },
+  });
+  const deps = { db, runtime: desligado };
+
+  const { body: { thread } } = handleCreateThread({}, deps);
+  const pergunta = 'quem é você?';
+
+  // Pelo caminho de uma vez.
+  const r = await handleSendMessage({ threadId: thread.id, content: pergunta }, deps);
+  assert.equal(r.status, 503);
+  assert.ok(!/Recebi:/.test(JSON.stringify(r.body)));
+  assert.equal(r.body.assistantMessage, undefined);
+
+  // E pelo caminho de streaming, que é o que a tela usa.
+  const { stream } = handleStreamMessage({ threadId: thread.id, content: pergunta }, deps);
+  const blocos = [];
+  for await (const bloco of stream) blocos.push(bloco);
+
+  assert.equal(blocos.length, 1);
+  assert.equal(blocos[0].event, 'agent.failed');
+  assert.equal(blocos[0].data.error.code, 'runtime_unavailable');
+  assert.equal(blocos[0].data.error.message, MENSAGEM_AGENTE_INDISPONIVEL);
+  assert.ok(!/Recebi:/.test(JSON.stringify(blocos)));
+  assert.ok(!/hermes/i.test(JSON.stringify(blocos)));
+
+  // Nenhuma resposta de assistente foi gravada por nenhum dos dois caminhos.
+  const assistentes = db.prepare(
+    "SELECT COUNT(*) AS n FROM agent_messages WHERE role = 'assistant'",
+  ).get().n;
+  assert.equal(assistentes, 0);
+
+  db.close();
+});
+
+test('21d-C. o "Recebi:" do echo só aparece quando o echo é pedido pelo nome', async () => {
+  // O Echo não perdeu nada: pedido explicitamente, ele continua o piso
+  // determinístico que a suíte inteira usa. O que mudou é quem chega nele.
+  const deps = { db: openDatabase(':memory:'), runtime: createEchoRuntime() };
+  const { body: { thread } } = handleCreateThread({}, deps);
+
+  const r = await handleSendMessage({ threadId: thread.id, content: 'oi' }, deps);
+
+  assert.equal(r.status, 200);
+  assert.equal(r.body.assistantMessage.content, 'Recebi: oi');
+  // Mesmo aí, a identidade pública continua sendo a do produto.
+  assert.equal(r.body.agentName, 'Showrunner');
+
+  deps.db.close();
+});
+
+test('21d-D. runtime que não pôde ser alcançado vira 503 indisponível, não 502', async () => {
+  // O caso REAL: o serviço de raciocínio estava configurado e não estava no ar.
+  // O adaptador declara isso no vocabulário do PORT, o gateway repassa sem
+  // conhecer runtime nenhum, e a superfície pública devolve indisponível — que
+  // é o código que a tela traduz em "tente novamente em instantes".
+  const db = openDatabase(':memory:');
+  const foraDoAr = assertRuntimePort({
+    id: 'hermes',
+    // Configurado: a URL existe. A checagem barata passa, e a descoberta de
+    // que ninguém atende só acontece ao tentar falar.
+    isAvailable: () => true,
+    unavailableReason: () => null,
+    testConnection: async () => ({ ok: false }),
+    run: async function* () {
+      throw new RuntimeUnavailableError('O serviço de raciocínio não respondeu.', {});
+      // eslint-disable-next-line no-unreachable
+      yield null;
+    },
+  });
+  const deps = { db, runtime: foraDoAr };
+
+  const { body: { thread } } = handleCreateThread({}, deps);
+
+  const r = await handleSendMessage({ threadId: thread.id, content: 'oi' }, deps);
+  assert.equal(r.status, 503);
+  assert.equal(r.body.error, MENSAGEM_AGENTE_INDISPONIVEL);
+
+  const { stream } = handleStreamMessage({ threadId: thread.id, content: 'oi' }, deps);
+  const blocos = [];
+  for await (const bloco of stream) blocos.push(bloco);
+
+  assert.equal(blocos.at(-1).event, 'agent.failed');
+  assert.equal(blocos.at(-1).data.error.code, 'runtime_unavailable');
+  assert.equal(blocos.at(-1).data.error.message, MENSAGEM_AGENTE_INDISPONIVEL);
+
+  // A fala do usuário permanece; nenhuma resposta de assistente foi inventada.
+  const assistentes = db.prepare(
+    "SELECT COUNT(*) AS n FROM agent_messages WHERE role = 'assistant'",
+  ).get().n;
+  assert.equal(assistentes, 0);
 
   db.close();
 });

@@ -18,7 +18,7 @@ import {
   assertIsolamentoAnunciado, assertToolsetsSeguros, createHermesClient,
   HermesTransportError, TOOLSETS_OBRIGATORIOS,
 } from '../lib/server/agent/hermes/runtimeClient.js';
-import { assertRuntimePort } from '../lib/server/agent/AgentRuntimePort.js';
+import { assertRuntimePort, RuntimeUnavailableError } from '../lib/server/agent/AgentRuntimePort.js';
 import { AGENT_EVENTS, declaredFieldsFor } from '../lib/server/agent/events.js';
 import { openDatabase } from '../lib/server/domain/db.js';
 import { createThreadRecord } from '../lib/server/agent/threads.js';
@@ -396,14 +396,48 @@ test('erro do runtime vira falha traduzida', async () => {
   assert.equal(/429|openai|provider|rate_limit/i.test(JSON.stringify(eventos)), false);
 });
 
-test('socket recusado vira erro de transporte, sem detalhe de rede', async () => {
+test('socket recusado vira INDISPONIBILIDADE — não um turno que quebrou no meio', async () => {
+  // O serviço não chegou a dizer nada: isso é "não deu para falar com ele", e
+  // o vocabulário que diz isso é o do PORT, não o desta camada. É essa
+  // tradução que faz a tela oferecer "tente de novo em instantes" em vez da
+  // frase genérica de falha — e o gateway a repassa sem conhecer runtime algum.
   const { db, thread } = bancoComThread();
   const runtime = createHermesRuntime({
     baseUrl: 'http://127.0.0.1:9', db, clock: relogio,
     fetchImpl: criarFetchFalso(),
     webSocketImpl: criarWebSocketFalso({ recusarAbertura: true }),
   });
-  await assert.rejects(() => falar(runtime, thread), HermesTransportError);
+
+  await assert.rejects(() => falar(runtime, thread), (erro) => {
+    assert.ok(erro instanceof RuntimeUnavailableError, `veio ${erro?.name}`);
+    // Continua sem detalhe de rede: nem endereço, nem porta, nem causa crua.
+    const inteiro = `${erro.message} ${JSON.stringify(erro.detail ?? {})}`;
+    for (const proibido of ['127.0.0.1', ':9', 'ECONN', 'socket', 'hermes']) {
+      assert.ok(!new RegExp(proibido, 'i').test(inteiro), `vazou "${proibido}": ${inteiro}`);
+    }
+    return true;
+  });
+});
+
+test('o que quebra DEPOIS da primeira palavra continua sendo falha de turno', async () => {
+  // A distinção tem dois lados. Se o serviço já começou a responder e o canal
+  // caiu, o turno foi perdido de verdade — chamar isso de "indisponível"
+  // convidaria a um "tente de novo" que repetiria metade de uma resposta.
+  const { db, thread } = bancoComThread();
+  const runtime = createHermesRuntime({
+    baseUrl: 'http://127.0.0.1:9', db, clock: relogio,
+    fetchImpl: criarFetchFalso(),
+    webSocketImpl: criarWebSocketFalso({
+      // Deltas sem `message.complete`: o runtime falou e o canal caiu.
+      roteiro: [{ type: 'message.delta', payload: { text: 'comecei a responder' } }],
+      cairAposRoteiro: true,
+    }),
+  });
+
+  await assert.rejects(() => falar(runtime, thread), (erro) => {
+    assert.ok(!(erro instanceof RuntimeUnavailableError), 'virou indisponibilidade tarde demais');
+    return true;
+  });
 });
 
 test('abortar interrompe o fluxo e pede cancelamento ao runtime', async () => {

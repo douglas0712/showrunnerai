@@ -32,6 +32,7 @@ export function criarWebSocketFalso({
   bridgeSessionId = BRIDGE_SESSION_ID_FALSO,
   aoEnviar = null,
   recusarAbertura = false,
+  cairAposRoteiro = false,
 } = {}) {
   return class WebSocketFalso {
     constructor(url) {
@@ -103,6 +104,13 @@ export function criarWebSocketFalso({
         if (tools) this._evento('session.info', { tools });
         this._evento('message.start', {});
         for (const passo of roteiro) this._evento(passo.type, passo.payload);
+
+        // O canal caindo DEPOIS de o runtime já ter falado. O disparo é numa
+        // macrotarefa de propósito: os quadros acima chegam por microtarefa, e
+        // quem consome precisa tê-los recebido de verdade antes da queda — é
+        // essa ordem que faz o cenário ser "quebrou no meio" e não "nunca
+        // respondeu", que é o outro cenário e tem outro tratamento.
+        if (cairAposRoteiro) setTimeout(() => this._disparar('error', {}), 0);
         return;
       }
 

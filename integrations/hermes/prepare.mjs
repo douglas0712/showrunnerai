@@ -38,6 +38,20 @@ if (existsSync(destinoConfig)) {
 // versões da identidade do produto — uma no repo e outra no arquivo que o
 // runtime lê. Reexecutar o script reescreve só esse trecho; o resto do config,
 // que é do operador, fica intacto.
+//
+// ── Definir não é escolher ──────────────────────────────────────────────────
+//
+// São DUAS chaves, e faltar a segunda é uma falha silenciosa: o runtime sobe,
+// responde, e responde sem persona nenhuma.
+//
+//   agent.personalities.showrunner   DEFINE a identidade
+//   display.personality: showrunner  ESCOLHE ela para as sessões deste home
+//
+// Até a v0.20.3 quem escolhia era o adaptador, por sessão, chamando
+// `POST /api/personality/set`. Esse endpoint não existe mais: a escolha passou
+// a ser configuração do HERMES_HOME. Como este home é dedicado ao Showrunner e
+// não tem outro dono, escolher aqui é o equivalente exato — e continua sendo
+// server-side, antes da primeira geração, fora do alcance do navegador.
 const INICIO = '# >>> showrunner:persona — GERADO, não edite à mão';
 const FIM = '# <<< showrunner:persona';
 
@@ -55,6 +69,8 @@ const bloco = [
   '    showrunner:',
   '      system_prompt: |',
   ...persona.split('\n').map((linha) => (linha ? `        ${linha}` : '')),
+  'display:',
+  '  personality: showrunner',
   FIM,
 ].join('\n');
 
@@ -67,7 +83,7 @@ if (jaTem !== -1) {
   config = `${config.trimEnd()}\n\n${bloco}\n`;
 }
 writeFileSync(destinoConfig, config);
-console.log('persona instalada no config do runtime dedicado');
+console.log('persona instalada E selecionada no config do runtime dedicado');
 
 const destinoPlugin = path.join(home, 'plugins', 'showrunner');
 if (existsSync(destinoPlugin) || lstatSafe(destinoPlugin)) {

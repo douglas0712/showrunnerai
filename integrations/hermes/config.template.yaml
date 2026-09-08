@@ -17,9 +17,14 @@ plugins:
     - showrunner
 
 # ── As ferramentas ──────────────────────────────────────────────────────────
-# O corte real de isolamento é o enabled_toolsets de cada SESSÃO, que o adapter
-# envia e confere. Esta lista é o padrão do ambiente, e existe para que uma
-# sessão criada por engano fora do adapter não caia no conjunto completo.
+# O corte real de isolamento é a variável HERMES_TUI_TOOLSETS no processo do
+# runtime dedicado — pino explícito, que vence a postura automática e esta
+# lista. Ver o README desta pasta.
+#
+# Esta entrada é o padrão do ambiente, e existe para que uma sessão criada por
+# engano SEM a variável não caia no conjunto completo. Aqui o `no_mcp` continua
+# valendo: é o caminho de configuração que ainda honra a sentinela (o pino
+# explícito a ignora, e não precisa dela — ver runtimeClient.js).
 platform_toolsets:
   cli:
     - showrunner

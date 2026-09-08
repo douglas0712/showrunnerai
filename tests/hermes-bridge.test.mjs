@@ -239,7 +239,9 @@ test('o sinal do turno em andamento chega ao ToolContext', async () => {
   const turns = createActiveTurnRegistry();
   const controlador = new AbortController();
 
-  turns.begin('sess_valida', controlador.signal);
+  // O turno é anunciado com o contexto que só o servidor tem — hoje o sinal e a
+  // âncora do turno. Ver `createActiveTurnRegistry`.
+  turns.begin('sess_valida', { signal: controlador.signal });
   await handleBridgeInvocation({
     sessionId: 'sess_valida', toolName: 'og_get_job', arguments: { jobId: 'j' },
   }, { db, registry, turns });

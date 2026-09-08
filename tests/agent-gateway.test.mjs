@@ -106,7 +106,7 @@ test('13. o gateway chama o runtime, com o contrato completo', async () => {
   const runtime = runtimeDeTeste();
   const thread = comThread(db, { projectId: 'proj_sinal', title: 'Direção' });
 
-  await sendMessage({ threadId: thread.id, content: 'Olá' }, { db, runtime });
+  const turno = await sendMessage({ threadId: thread.id, content: 'Olá' }, { db, runtime });
 
   assert.equal(runtime.chamadas.length, 1);
   const argumentos = runtime.chamadas[0];
@@ -120,10 +120,16 @@ test('13. o gateway chama o runtime, com o contrato completo', async () => {
 
   // O contexto é vocabulário do Showrunner e nada mais: nada de nó, caminho,
   // workflow ou modelo atravessa para o runtime.
+  //
+  // PASSO 10.0: `userMessageId` entrou. É a âncora durável DESTE turno — a fala
+  // que o gateway acabou de gravar, antes de o runtime começar a pensar. Um
+  // adaptador que execute ferramentas por outro canal a repassa ao registro de
+  // turnos; nenhum runtime a inventa.
   assert.deepEqual(argumentos.context, {
     agentName: 'Showrunner',
     threadId: thread.id,
     projectId: 'proj_sinal',
+    userMessageId: turno.userMessage.id,
   });
 
   // 24 · a coleção de tools chega vazia, provando que o argumento já existe.

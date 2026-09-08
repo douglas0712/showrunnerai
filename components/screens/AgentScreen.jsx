@@ -7,7 +7,8 @@ import { ImageFrame } from '../ui/MediaFrame';
 import { RealVideoPlayer } from '../ui/RealVideoPlayer';
 import { Icon } from '../ui/icons';
 import {
-  aplicarEvento, ensureThread, friendlyError, novaResposta, semUrlsJaExibidas, streamTurn,
+  aplicarEvento, ensureThread, friendlyError, lembrarThread, novaResposta,
+  semUrlsJaExibidas, startNewThread, streamTurn, threadLembrada,
 } from '@/lib/agentClient';
 
 /**
@@ -28,12 +29,17 @@ export default function AgentScreen() {
   const [erroDeAbertura, setErroDeAbertura] = useState(null);
   const [semProjeto, setSemProjeto] = useState(false);
   const [draft, setDraft] = useState('');
+  const [abrindoNova, setAbrindoNova] = useState(false);
 
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
+  const inputRef = useRef(null);
   // Guarda contra duplo envio: o estado do React chega tarde demais para
   // barrar dois cliques seguidos, ou um Enter que repete.
   const enviandoRef = useRef(false);
+  // A mesma guarda, pelo mesmo motivo, para "Nova conversa": dois cliques
+  // seguidos abririam DUAS conversas no banco, e a primeira ficaria órfã.
+  const abrindoNovaRef = useRef(false);
 
   // ── abrir a conversa ────────────────────────────────────────────────────
   useEffect(() => {
@@ -41,28 +47,12 @@ export default function AgentScreen() {
 
     (async () => {
       try {
-        // A chave é POR PROJETO: cada produção tem a própria conversa, e
-        // voltar a um projeto volta à conversa dele. Uma chave única faria a
-        // troca de projeto herdar a conversa anterior.
-        const chave = `showrunner.agent.threadId.${activeProjectId || 'sem-projeto'}`;
-        const salvo = typeof window !== 'undefined'
-          ? window.localStorage.getItem(chave)
-          : null;
-
-        // O descritor do projeto em que o usuário está. É com ele que o
-        // servidor registra o projeto, se ainda não o conhecer.
-        const descritor = activeProject
-          ? {
-            id: activeProject.id,
-            name: activeProject.name,
-            description: activeProject.description || '',
-            aspect: activeProject.aspect || undefined,
-          }
-          : null;
+        // O ponteiro é POR PROJETO, e quem sabe montar a chave é o cliente.
+        const salvo = threadLembrada(activeProjectId);
 
         const { thread, messages: historico } = await ensureThread({
           threadId: salvo,
-          project: descritor,
+          project: descritorDoProjeto(activeProject),
         });
 
         if (cancelado) return;
@@ -70,9 +60,7 @@ export default function AgentScreen() {
         setThreadId(thread.id);
         setSemProjeto(!thread.projectId);
         setMessages(historico.map(paraTela));
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(chave, thread.id);
-        }
+        lembrarThread(activeProjectId, thread.id);
       } catch (falha) {
         if (!cancelado) setErroDeAbertura(friendlyError(falha));
       } finally {
@@ -155,6 +143,46 @@ export default function AgentScreen() {
     toast('Resposta interrompida.', 'info');
   };
 
+  /**
+   * Começar outra conversa no MESMO projeto.
+   *
+   * Nada é apagado: a conversa anterior continua no servidor, com as mensagens
+   * e a mídia que ela produziu. O que muda é qual conversa este projeto aponta
+   * como atual — e é só o ponteiro deste projeto que se move.
+   *
+   * A tela só troca DEPOIS de o servidor confirmar a nova conversa. Se a
+   * criação falhar, o usuário continua exatamente onde estava, com o histórico
+   * na frente dele; limpar antes de saber que deu certo deixaria a tela vazia
+   * apontando para uma conversa que não existe.
+   */
+  const novaConversa = useCallback(async () => {
+    if (abrindoNovaRef.current || emCurso) return;
+
+    abrindoNovaRef.current = true;
+    setAbrindoNova(true);
+
+    try {
+      const { thread } = await startNewThread({
+        project: descritorDoProjeto(activeProject),
+        projectId: activeProjectId ?? null,
+      });
+
+      setThreadId(thread.id);
+      setSemProjeto(!thread.projectId);
+      setMessages([]);
+      setEmCurso(null);
+      setDraft('');
+      setErroDeAbertura(null);
+      inputRef.current?.focus();
+    } catch (falha) {
+      // A conversa atual permanece inteira na tela — nada foi limpo ainda.
+      toast(friendlyError(falha), 'error');
+    } finally {
+      abrindoNovaRef.current = false;
+      setAbrindoNova(false);
+    }
+  }, [activeProject, activeProjectId, emCurso, toast]);
+
   const emAndamento = Boolean(emCurso);
 
   return (
@@ -174,11 +202,26 @@ export default function AgentScreen() {
               </p>
             </div>
           </div>
-          {emAndamento ? (
-            <Button size="sm" variant="ghost" icon="close" onClick={cancelar}>
-              Parar
+          <div className="flex items-center gap-2">
+            {emAndamento ? (
+              <Button size="sm" variant="ghost" icon="close" onClick={cancelar}>
+                Parar
+              </Button>
+            ) : null}
+            <Button
+              size="sm"
+              variant="ghost"
+              icon="plus"
+              title="Começar uma conversa nova neste projeto"
+              onClick={novaConversa}
+              // Enquanto o Showrunner está respondendo, o botão fica fora do ar:
+              // trocar de conversa no meio de um turno descartaria uma resposta
+              // que está sendo escrita, sem o usuário ter pedido isso.
+              disabled={emAndamento || carregando || abrindoNova}
+            >
+              Nova conversa
             </Button>
-          ) : null}
+          </div>
         </header>
 
         <div className="scroll-thin flex-1 space-y-4 overflow-y-auto px-4 py-5">
@@ -208,6 +251,7 @@ export default function AgentScreen() {
         <footer className="border-t border-hairline p-3">
           <div className="flex items-end gap-2">
             <Textarea
+              ref={inputRef}
               rows={2}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
@@ -234,6 +278,23 @@ export default function AgentScreen() {
       </Panel>
     </div>
   );
+}
+
+/**
+ * O descritor do projeto em que o usuário está.
+ *
+ * É com ele que o servidor registra o projeto, se ainda não o conhecer — com o
+ * MESMO id que a tela já usa. Nenhum projeto é inventado aqui: sem projeto
+ * ativo, sai `null`, e a conversa nasce sem projeto.
+ */
+function descritorDoProjeto(project) {
+  if (!project) return null;
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description || '',
+    aspect: project.aspect || undefined,
+  };
 }
 
 /** Uma mensagem da conversa: texto, o que está sendo feito, e a mídia. */

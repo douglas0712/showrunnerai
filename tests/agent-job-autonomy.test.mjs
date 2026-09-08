@@ -27,6 +27,7 @@ import {
   criarRegistroDeAcompanhamento, estadoDeProducao, limiteConfigurado,
   LIMITE_PADRAO_MS, PRODUCAO, producaoTerminou, RETENCAO_MS,
 } from '../lib/server/agent/tools/jobWatch.js';
+import { JOB_STATES } from '../lib/server/generation/jobStates.js';
 import { generateImageTool } from '../lib/server/agent/tools/handlers/generateImage.js';
 import { generateVideoTool } from '../lib/server/agent/tools/handlers/generateVideo.js';
 import { getJobTool } from '../lib/server/agent/tools/handlers/getJob.js';
@@ -120,10 +121,13 @@ function ambiente({ agora = () => INSTANTE, ...opcoes } = {}) {
   return { db, registro, consultar, roteiro, soltar: freio.soltar, descartes, descartar };
 }
 
-const gerando = () => ({ status: 'gerando' });
-const salvando = () => ({ status: 'salvando' });
-const concluido = (assetId) => ({ status: 'concluido', assetId });
-const falhou = () => ({ status: 'falhou', error: 'a execução falhou' });
+// PASSO 10.1: o que a facade devolve é o estado de DOMÍNIO do Showrunner, não
+// o do executor. Os nomes destes atalhos continuam em português porque
+// descrevem o CENÁRIO; o valor é o do vocabulário genérico.
+const gerando = () => ({ status: JOB_STATES.RUNNING });
+const salvando = () => ({ status: JOB_STATES.FINALIZING });
+const concluido = (assetId) => ({ status: JOB_STATES.DONE, assetId });
+const falhou = () => ({ status: JOB_STATES.FAILED, error: 'a execução falhou' });
 
 /** Um Asset já publicado, para o roteiro poder concluir num id real. */
 function assetPronto(db, { projectId = 'proj_a', kind = 'image', jobId = null } = {}) {
@@ -356,15 +360,20 @@ test('G. estado intermediário não vira Asset nem conclui o acompanhamento', as
   db.close();
 });
 
-test('G-bis. o estado público não repete o vocabulário do gerador', () => {
-  assert.equal(estadoDeProducao('preparando'), PRODUCAO.GERANDO);
-  assert.equal(estadoDeProducao('enviado'), PRODUCAO.GERANDO);
-  assert.equal(estadoDeProducao('na-fila'), PRODUCAO.GERANDO);
-  assert.equal(estadoDeProducao('decodificando'), PRODUCAO.GERANDO);
-  assert.equal(estadoDeProducao('salvando'), PRODUCAO.FINALIZANDO);
-  assert.equal(estadoDeProducao('concluido'), PRODUCAO.CONCLUIDO);
-  assert.equal(estadoDeProducao('falhou'), PRODUCAO.FALHOU);
-  assert.equal(estadoDeProducao('cancelado'), PRODUCAO.FALHOU);
+test('G-bis. o estado de produção colapsa o de domínio, e não o do gerador', () => {
+  // A tela mostra quatro palavras. A granularidade do domínio existe para o
+  // servidor, não para quem espera uma imagem.
+  assert.equal(estadoDeProducao(JOB_STATES.PREPARING), PRODUCAO.GERANDO);
+  assert.equal(estadoDeProducao(JOB_STATES.SUBMITTED), PRODUCAO.GERANDO);
+  assert.equal(estadoDeProducao(JOB_STATES.QUEUED), PRODUCAO.GERANDO);
+  assert.equal(estadoDeProducao(JOB_STATES.RUNNING), PRODUCAO.GERANDO);
+  assert.equal(estadoDeProducao(JOB_STATES.FINALIZING), PRODUCAO.FINALIZANDO);
+  assert.equal(estadoDeProducao(JOB_STATES.DONE), PRODUCAO.CONCLUIDO);
+  assert.equal(estadoDeProducao(JOB_STATES.FAILED), PRODUCAO.FALHOU);
+  assert.equal(estadoDeProducao(JOB_STATES.CANCELLED), PRODUCAO.FALHOU);
+  // Órfão vira "falhou" para quem espera: não veio resultado. A distinção
+  // existe para o operador, no log.
+  assert.equal(estadoDeProducao(JOB_STATES.ORPHANED), PRODUCAO.FALHOU);
 });
 
 // ── H + I · o Asset nasce e vai parar na mensagem certa ─────────────────────

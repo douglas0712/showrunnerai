@@ -37,6 +37,7 @@ import { createAsset } from '../lib/server/domain/assets.js';
 import { createToolRegistry, setToolRegistry } from '../lib/server/agent/tools/registry.js';
 import { defineTool } from '../lib/server/agent/tools/schema.js';
 import { criarRegistroDeAcompanhamento } from '../lib/server/agent/tools/jobWatch.js';
+import { JOB_STATES } from '../lib/server/generation/jobStates.js';
 import { comMidia } from '../lib/agentClient.js';
 
 /** O identificador interno que não pode atravessar. */
@@ -405,7 +406,10 @@ test('I. o acompanhamento é amarrado pelo evento interno, não pelo público', 
   const asset = assetPronto(db);
 
   const registro = criarRegistroDeAcompanhamento({
-    consultar: async () => ({ jobId: JOB_INTERNO, status: 'concluido', assetId: asset.id }),
+    // PASSO 10.1: `status` é o estado de DOMÍNIO. Devolver o vocabulário antigo
+    // aqui faria o acompanhamento nunca reconhecer o fim — e um laço com espera
+    // imediata que nunca termina trava o processo inteiro, não só este teste.
+    consultar: async () => ({ jobId: JOB_INTERNO, status: JOB_STATES.DONE, assetId: asset.id }),
     esperar: async () => {},
   });
 

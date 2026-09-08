@@ -84,7 +84,10 @@ test('B. decodificando e salvando NÃO criam Asset', async () => {
     const { db, jobId, projectId } = cenario({ state });
     const r = await getGenerationJob(jobId, { projectId, db });
 
-    assert.equal(r.status, state === STATES.SAVING ? 'salvando' : 'decodificando');
+    // PASSO 10.1: o estado que sai da facade é o de DOMÍNIO. `salvando` vira
+    // `finalizing`; `decodificando` colapsa em `running`, porque a fase do
+    // grafo é informação do executor, não do trabalho.
+    assert.equal(r.status, state === STATES.SAVING ? 'finalizing' : 'running');
     assert.equal(r.assetId, null, `${state} não deveria produzir Asset`);
     assert.equal(findAssetsByJob(jobId, db).length, 0);
   }
@@ -110,7 +113,7 @@ test('C. a primeira consulta a um job concluído cria o Asset', async () => {
 
   const r = await getGenerationJob(jobId, { projectId, db });
 
-  assert.equal(r.status, 'concluido');
+  assert.equal(r.status, 'done');
   assert.ok(r.assetId, 'o Asset deveria ter sido criado');
   assert.equal(findAssetsByJob(jobId, db).length, 1);
   assert.equal(r.mediaUrl, `/api/media/image/${jobId}.png`);
@@ -246,7 +249,7 @@ test('I. o caminho do runtime chega à tool certa sem conhecer o finalizador', a
   const espiao = {
     invoke: async (name, context, args) => {
       chamadas.push({ name, context, args });
-      return { jobId, status: 'concluido', assetId: 'asset_x', asset: { id: 'asset_x' } };
+      return { jobId, status: 'done', assetId: 'asset_x', asset: { id: 'asset_x' } };
     },
   };
 

@@ -8,7 +8,7 @@ Ele não depende de `/tmp`, de scratchpad, de histórico de conversa nem da
 memória de nenhuma sessão.
 
 **Atualizado em:** 9 de setembro de 2026
-**HEAD funcional documentado:** `b2ce6b10f3c90e2661ef7a63b9433a906644a7ac`
+**HEAD funcional documentado:** `cb7c5e0f26a6216185b53533a78c1e9afe9b65f9`
 
 > **Regra de precedência.** Se este documento divergir do código ou do Git, **o
 > código e o Git são a fonte de verdade**. Verifique antes de confiar. Foi
@@ -22,17 +22,17 @@ memória de nenhuma sessão.
 
 1. Leia este documento inteiro. Ele tem tudo o que você precisa para começar.
 2. `git status --short` — esperado: **vazio** (árvore limpa).
-3. `git log --oneline -5` — esperado: `b2ce6b1` no topo do trabalho funcional.
-4. `npm test` — esperado: **1114 testes, 1114 passando, 0 falhando** (~3 min).
+3. `git log --oneline -5` — esperado: `cb7c5e0` no topo do trabalho funcional.
+4. `npm test` — esperado: **1128 testes, 1128 passando, 0 falhando** (~3 min).
 5. `npm run build` — esperado: compila limpo, 18 páginas estáticas.
 6. **Não refaça os Passos 1–11.** Eles estão prontos, testados e commitados. O
    **núcleo** do Passo 10 (10.0 a 10.5) está fechado; **10.6 é backlog** e não
    bloqueia nada — ver seção 17. O **Passo 11** (ingestão de documentos) está
    fechado — ver seção 18.
-7. **O Quality Gate audiovisual foi executado à mão, no produto real, e passou**
-   — com uma ressalva medida que você precisa ler antes de confiar na linhagem
-   de vídeo: seção 19.
-8. **O próximo passo é o PASSO 12 — PRODUCTION PLANNING** (seção 21). Ele ainda
+7. **O Quality Gate audiovisual foi executado à mão, no produto real, e passou
+   inteiro** — inclusive a linhagem imagem → vídeo, verificada no banco e no
+   grafo submetido ao executor: seção 20.
+8. **O próximo passo é o PASSO 12 — PRODUCTION PLANNING** (seção 22). Ele ainda
    não foi começado.
 9. Preserve as **NON-NEGOTIABLE ARCHITECTURE RULES**. Elas não são estilo: cada
    uma existe porque a alternativa já causou, ou causaria, um defeito concreto.
@@ -50,24 +50,22 @@ ruído do `node:sqlite` no Node 24, não uma falha. Não suprima.
 | Nome do pacote | `showrunner-studio` (ver `package.json`) |
 | Branch | `main` |
 | Remote | `origin` → `https://github.com/douglas0712/showrunnerai.git` |
-| HEAD funcional | `b2ce6b10f3c90e2661ef7a63b9433a906644a7ac` |
+| HEAD funcional | `cb7c5e0f26a6216185b53533a78c1e9afe9b65f9` |
 | Working tree | limpa |
-| Testes | 1114 / 1114 passando, 0 falhas |
+| Testes | 1128 / 1128 passando, 0 falhas |
 | Build | limpo (`✓ Compiled successfully`, 18/18 páginas) |
 | Node | v24.x (usa `node:sqlite`, experimental) |
 | Next | 15.5.15 · React 19.2.8 |
 
-> **Atenção:** `main` está **1 commit à frente de `origin/main`** neste momento.
-> O `b2ce6b1` foi criado localmente e o `git push` falhou por **autenticação** —
-> o remote é HTTPS e não havia credencial disponível na sessão. Nenhuma
-> configuração de Git foi alterada e nenhuma credencial foi gerada. Publique com
-> `git push origin main` quando puder autenticar.
-> (`git rev-list --left-right --count origin/main...main` → `0  1`.)
+> `origin/main` está **sincronizado** com `main`. Nada existe só localmente.
+> (`git rev-list --left-right --count origin/main...main` → `0  0`.)
 
 ### Checkpoints importantes
 
 | Commit | O que entrou |
 | --- | --- |
+| `cb7c5e0` | **I2V com linhagem** — "anime essa imagem" passou a virar image-to-video de verdade, com `derivedFromAssetId` real |
+| `2c8a227` | handoff do Passo 11, da continuidade de thread e do Quality Gate |
 | `b2ce6b1` | **PASSO 11** — ingestão de documentos (migração 8) **e** a continuidade da mesma AgentThread quando o runtime recicla a sessão dele |
 | `6a0a2b9` | **PASSO 10.5** — recuperação dos trabalhos ainda EM VOO no arranque (`/queue`), acompanhamento retomado, e `orphaned` honesto |
 | `beff9f0` | **PASSO 10.4** — recuperação, no arranque, dos trabalhos que terminaram durante a queda (`/history`) |
@@ -761,12 +759,20 @@ reusada e uma thread nova são indistinguíveis na tela e diferentes no banco.
 | text-to-image | **Ideogram 4** (`ideogram4_t2i`) | **validado com geração real** |
 | vídeo | **MiniMax H3** (`minimax_h3_t2v`) | **validado com geração real** |
 
-> **O registry tem UM workflow de vídeo, e o id dele é `minimax_h3_t2v`.** O
-> caminho image-to-video não é outro workflow: é o MESMO grafo recebendo um
-> quadro inicial, montado pela facade quando `sourceAssetId` é informado. Isso
-> funciona e está coberto — mas o Quality Gate de 9 de setembro **não** o
-> exercitou, e a ressalva está medida na seção 20. Leia antes de afirmar que
-> "anime essa imagem" produz linhagem.
+> **O registry tem UM workflow de vídeo, e o id dele é `minimax_h3_t2v`.**
+>
+> O nome é HISTÓRICO e engana: o descriptor é **multimodal** e declara
+> `modes: ['t2v', 'i2v', 'flf']`. Image-to-video **não é outro workflow** — é o
+> MESMO grafo recebendo um quadro inicial:
+>
+> ```
+> sourceAssetId → bytes reais do Asset → frames.first
+>               → nó LoadImage → first_frame → MiniMaxH3ImageToVideo
+> ```
+>
+> Não existe, e não deve ser inventado, um `minimax_h3_i2v`. Acrescentar um
+> descriptor para o que o atual já faz criaria dois grafos disputando o mesmo
+> trabalho. Provado com execução real — ver seção 20.
 
 - `workflows/ideogram4_t2i_api.json` — versionado no repositório, 29 nós.
   Descriptor em `lib/server/generation/workflows/ideogram4.js`.
@@ -788,7 +794,7 @@ Nomes de arquivos de modelo exigidos estão nos descriptors. **Nenhuma credencia
 
 ### Testes determinísticos — `npm test`
 
-**1114 testes, 1114 passando, 0 falhando.** 66 arquivos `tests/*.test.mjs`, com
+**1128 testes, 1128 passando, 0 falhando.** 67 arquivos `tests/*.test.mjs`, com
 `node:test`, sem dependências de teste. Sem rede, sem GPU, sem runtime externo, sem
 credencial. Vários são regressões de falhas reais e trazem a causa documentada
 no cabeçalho: se um quebrar, o refactor está errado, não o teste.
@@ -877,7 +883,8 @@ Scripts: `tests/smoke-hermes-real.mjs` e `tests/smoke-i2v-real.mjs`.
 | **PDF sem texto é recusado com honestidade** | 422, frase de OCR, zero linha no banco, zero arquivo órfão |
 | **o nome do arquivo não alcança o filesystem** | upload com `filename=../../../../etc/passwd` → 201, arquivo sob `runtime/documents/<projectId>/<documentId>/source.txt`, `/etc/passwd` intacto |
 | **a conversa sobrevive à reciclagem da sessão do runtime** | seção 19: 4 turnos na MESMA thread com 25 s de pausa; o runtime reciclou 4 vezes, o Showrunner reabriu 3, uma sessão durável só, zero `runtime_unavailable` |
-| **Quality Gate audiovisual, à mão, no navegador** | seção 20: identidade → T2I real → "anime essa imagem" → vídeo real → reload preserva mídia → nova conversa preserva a anterior. **Com a ressalva medida de `derivedFromAssetId`** |
+| **Quality Gate audiovisual, à mão, no navegador** | seção 20: identidade → T2I real → "anime essa imagem" → **I2V real** → vídeo → reload preserva mídia → nova conversa preserva a anterior |
+| **"anime essa imagem" produz LINHAGEM real** | seção 20, verificado no banco e no `/history` do executor: `B.derivedFromAssetId = A`, e o grafo submetido traz `LoadImage` ligado ao `first_frame`. A execução anterior submetia zero `LoadImage` e gravava linhagem nula |
 | **o gancho de arranque não quebra o bundle** | o mesmo smoke encontrou `UnhandledSchemeError: node:child_process` (`ffmpeg ← provider ← facade ← reconcile`) causando **500 em toda rota**, que nem `npm test` nem `npm run build` pegavam. Consertado com URL montada em runtime + `webpackIgnore` |
 | `/queue` e `filename_prefix` do executor real | Passo 10.5, leitura apenas: `/queue` responde `{queue_running, queue_pending}` pelo cliente do projeto, e uma execução real do histórico traz `filename_prefix: image/showrunner/<jobId>` no nó de gravação do descriptor (`158`) |
 
@@ -1219,6 +1226,7 @@ comportamento esperado, não escondido.
 | **11** — Document Ingestion (PDF/TXT → Project → o agente lê) | ✅ | `b2ce6b1` |
 | **—** — Thread Continuity (a conversa sobrevive à reciclagem da sessão) | ✅ | `b2ce6b1` |
 | **—** — Quality Gate Core Audiovisual E2E (manual, no produto real) | ✅ | seção 20 |
+| **—** — Referência natural a Asset → I2V com linhagem | ✅ | `cb7c5e0` |
 
 ---
 
@@ -2043,53 +2051,75 @@ conversa → identidade Showrunner → T2I real → Asset aparece
          → reload preserva a mídia → nova conversa preserva a thread anterior
 ```
 
-### ⚠️ A ressalva medida — `derivedFromAssetId`
+### A linhagem, verificada no banco
 
-**A linhagem NÃO foi gravada nesta execução, e isso foi verificado no banco.**
+Este gate rodou em duas etapas, e a segunda existe porque a primeira quase
+passou por engano.
 
-Consulta read-only em `runtime/showrunner.db`, no projeto do Quality Gate:
-
-```
-image  2026-09-09T14:24:02Z  asset_mtu6vqxg_d7ad3d33   derivedFrom: —
-video  2026-09-09T14:32:23Z  asset_mtu76i49_63170f64   derivedFrom: —   ← nulo
-```
-
-E o livro-razão da geração de vídeo:
+**Na primeira execução**, o comportamento pareceu certo: o agente entendeu
+*"anime essa imagem"* e o vídeo correspondeu ao pedido. A consulta ao banco
+mostrou outra coisa:
 
 ```
-workflowId          minimax_h3_t2v      ← TEXT-to-video
-derivedFromAssetId  (nulo)
+video  asset_mtu76i49_63170f64   derivedFromAssetId: NULO
+ledger                            LoadImage no grafo: 0
 ```
 
-**O que isso quer dizer, com precisão:**
+Não houve image-to-video. Houve um **text-to-video** cujo prompt descrevia a
+imagem — e por isso não havia linhagem para gravar. O vídeo "parecer correto"
+não bastava, e é essa a lição que esta seção existe para carregar.
 
-- o comportamento **conversacional** funcionou: o agente entendeu *"essa
-  imagem"*, chamou `og.generate_video`, e o vídeo resultante correspondeu ao
-  pedido;
-- mas ele chamou a ferramenta **sem `sourceAssetId`**. Não houve
-  image-to-video: houve um **text-to-video** cujo prompt descrevia a imagem;
-- por isso não há linhagem — não havia o que registrar.
-
-**O mecanismo i2v não está quebrado.** Ele existe (`og.generate_video` aceita
-`sourceAssetId`, valida projeto e `kind`, e a facade grava
-`derivedFromAssetId`), está coberto pela suíte determinística, e há um Asset
-mais antigo no banco que o comprova:
+Corrigido em `cb7c5e0` (ver seção 21). **Na execução seguinte, com o mesmo
+pedido em linguagem natural:**
 
 ```
-video  2026-09-03  asset_mtlstp28_bc1537a3
-       derivedFrom: asset_mtlsae20_daf09b6e  (kind=image, smoke-final.png)
+A (imagem) = asset_mtudf9uq_2e61dd53
+B (vídeo)  = asset_mtudjqvc_f70c809e
+
+B.kind                                    = video
+B.derivedFromAssetId                      = asset_mtudf9uq_2e61dd53   ← A
+
+generation_jobs do vídeo:
+  workflowId                              = minimax_h3_t2v
+  state                                   = done
+  derivedFromAssetId                      = asset_mtudf9uq_2e61dd53   ← A
 ```
 
-O que **não** foi exercitado neste Quality Gate foi o caminho i2v. Fica em
-aberto, e é a primeira coisa a repetir no próximo gate:
+E, no `/history` do ComfyUI, o grafo que foi realmente submetido:
 
-> **PENDENTE:** provar que *"anime essa imagem"* leva o agente a passar
-> `sourceAssetId`, e que o vídeo nasce com `derivedFromAssetId` apontando para o
-> Asset da imagem. Vale investigar se a descrição da ferramenta orienta o modelo
-> a isso com clareza suficiente, e se o único workflow de vídeo registrado
-> (`minimax_h3_t2v`) precisa de um irmão explícito de i2v no registry.
+```
+nós LoadImage: 1
+  sr:first_frame → showrunner/cinema_mtudg6k9_7secrp_first.png
+  105:104 MiniMaxH3ImageToVideo | first_frame: ["sr:first_frame", 0]
+```
 
-Nenhum dado foi alterado nesta verificação.
+O contraste é a prova:
+
+| | primeira execução | depois da correção |
+| --- | --- | --- |
+| `LoadImage` no grafo submetido | **0** | **1** |
+| `derivedFromAssetId` do Asset | **nulo** | `asset_mtudf9uq_2e61dd53` |
+| `derivedFromAssetId` no livro-razão | **nulo** | `asset_mtudf9uq_2e61dd53` |
+
+Todas as consultas foram **somente leitura**. Nenhum dado foi alterado.
+
+### A continuidade da sessão, no mesmo smoke
+
+Entre o turno da imagem e o turno do vídeo houve uma pausa de **25 segundos** —
+deliberada, porque a carência do `ws_orphan_reap` é 20 s (seção 19). O runtime
+reciclou a sessão, e o turno seguinte a restabeleceu:
+
+```
+17:27:47  A conversa do runtime foi restabelecida.  {"threadId": "thread_mtudecac_87149ee1"}
+```
+
+Ou seja, o fluxo comprovado atravessa as duas correções ao mesmo tempo:
+
+```
+T2I real → espera → sessão reciclada → session.resume
+         → "anime essa imagem" → sourceAssetId real → I2V real
+         → derivedFromAssetId → vídeo → reload
+```
 
 ### Incidente de operação — não é bug do Agent
 
@@ -2118,7 +2148,113 @@ build sobrescreve os chunks do dev.
 
 ---
 
-## 21 · O que está aberto, e o próximo passo
+## 21 · REFERÊNCIA NATURAL A ASSET — I2V COM LINHAGEM ✅
+
+**Concluído em `cb7c5e0`.** Um defeito que o Quality Gate quase deixou passar,
+porque o comportamento parecia certo.
+
+### O sintoma
+
+> *"Anime essa imagem."*
+
+O agente entendia. O vídeo saía correspondendo ao pedido. E o banco dizia outra
+coisa: `derivedFromAssetId` nulo, e nenhum `LoadImage` no grafo submetido.
+
+Era um **text-to-video cujo prompt descrevia a imagem** — não uma animação
+dela. Nenhuma linhagem, porque não havia linhagem para gravar.
+
+### A causa, que não era do modelo
+
+Desde o **Passo 9**, uma geração termina depois do turno que a pediu:
+
+```
+turno 1 → og.generate_image → devolve { jobId, kind, status }
+                                       ↑ sem assetId: o Asset AINDA NÃO EXISTE
+        → o turno do modelo acaba
+        → o JobWatcher conclui, server-side, e o Asset nasce
+
+turno 2 → "anime essa imagem"
+        → o modelo entende perfeitamente…
+        → …e não tem NENHUM identificador para passar em sourceAssetId
+        → chama og.generate_video sem ele → T2V
+```
+
+Três coisas que **não** eram o problema, e que foram verificadas antes de
+mexer em qualquer linha:
+
+- **não** era falha de compreensão semântica — o agente entendeu todas as vezes;
+- **não** era falta de workflow — `minimax_h3_t2v` já é multimodal;
+- **não** era bug do pipeline i2v — ele está íntegro desde o Passo 6.1, coberto
+  por teste, e havia um Asset de setembro com a linhagem correta.
+
+Era **ausência de referência durável da imagem no turno seguinte**. O agente
+fazia a única coisa que podia.
+
+### A correção
+
+O **servidor** passa a dizer ao modelo o que ele pode referenciar. É o mesmo
+mecanismo do anexo de documento do Passo 11, e pela mesma razão: uma referência
+que aponta para fora da frase só se resolve se o servidor disser qual é o
+referente.
+
+| Peça | Papel |
+| --- | --- |
+| `listThreadAssets()` (`agent/threads.js`) | a mídia que ESTA conversa produziu, com o `prompt` de cada uma |
+| `context.images` (`gateway.js`) | entra no contexto do turno, montado no servidor |
+| `imageReferenceBriefing()` (`agent/attachments.js`) | o aviso privado ao modelo |
+
+Decisões que valem preservar:
+
+- **escopo é a THREAD, não o Project.** "Essa imagem" é dêitico: aponta para o
+  que está à vista, e o que está à vista é esta conversa. Uma conversa nova não
+  herda o referente — pela mesma razão que não herda o anexo de um turno.
+- **a ordem é a da CONVERSA** (`seq` da mensagem), não a do relógio: duas
+  gerações do mesmo turno cabem no mesmo milissegundo, e aí `createdAt` não
+  ordena nada.
+- **teto de 6.** Isto entra no contexto de um modelo; uma conversa longa tem
+  dezenas de Assets e oferecer todos gastaria o turno listando o que ninguém vai
+  referenciar.
+- **o `prompt` acompanha cada Asset.** É o que torna duas imagens
+  DISTINGUÍVEIS — sem ele, uma lista de identificadores nus não ajuda ninguém a
+  decidir qual é "a do astronauta". É texto que o próprio modelo escreveu.
+- **é uma LISTA, não "a última".** Escolher pelo modelo seria heurística, e
+  heurística erra em silêncio exatamente quando há duas imagens — que é quando
+  o usuário mais precisa ser entendido. Com mais de uma, o aviso manda
+  **PERGUNTAR**. Nada de `MAX(createdAt)`, nada de outra thread, nada aleatório;
+  há teste que falha se alguma dessas frases aparecer no aviso.
+- **o modelo nunca inventa um id.** Ele escolhe dentro do que o servidor
+  ofereceu.
+
+Os schemas (a tool canônica e o do plugin) passaram a dizer o que "opcional"
+escondia: pedidos de animação **exigem** `sourceAssetId`.
+
+### A regra T2V × I2V
+
+```
+sourceAssetId AUSENTE   →  text-to-video   →  derivedFromAssetId = NULL
+sourceAssetId PRESENTE  →  image-to-video  →  derivedFromAssetId = sourceAssetId
+```
+
+> **A execução é decidida pelo ARGUMENTO ESTRUTURADO, nunca pela palavra
+> "anime" no prompt.** A intenção linguística é resolvida pelo agente; o que o
+> executor faz é determinado pelo dado. Há teste que submete
+> `prompt: "anime um dragão vermelho voando"` **sem** `sourceAssetId` e exige
+> zero quadro e linhagem nula.
+
+E a linhagem nunca é preenchida artificialmente para um t2v.
+
+### Testes
+
+`tests/agent-image-to-video.test.mjs` — **14 testes**. Cobre: a lista oferecida
+pelo servidor e o escopo dela; o contexto chegando ao runtime; o caminho inteiro
+`sourceAssetId → bytes reais → frames.first → livro-razão`; o Asset final com
+linhagem; T2V preservado; os dois caminhos alternados sem contaminação;
+cross-project e `kind` errado recusados; a ambiguidade que vira pergunta; e a
+superfície pública.
+
+---
+
+## 22 · O que está aberto, e o próximo passo
 
 ### O estado, em quatro linhas
 
@@ -2126,7 +2262,8 @@ build sobrescreve os chunks do dev.
 Passos 1–10 CORE ...................... ✅
 Passo 11 · Document Ingestion ......... ✅
 Thread Continuity ..................... ✅
-Quality Gate · Core Audiovisual E2E ... ✅   (com a ressalva da seção 20)
+I2V com linhagem comprovada ........... ✅
+Quality Gate · Core Audiovisual E2E ... ✅
 
 10.6 · Operational Hardening .......... ⏸ backlog
 ```
@@ -2140,7 +2277,7 @@ entra e o agente o lê. O Passo 12 é a segunda metade — o que se FAZ com ele.
 Material / ProjectDocument
   → proposta narrativa
   → roteiro estruturado
-  → cenas
+  → cenas PERSISTENTES
   → preparação para geração audiovisual
 ```
 
@@ -2152,20 +2289,18 @@ Dois pontos de partida que já estão no lugar e não precisam ser inventados:
   duração, status e imagem — falta a ponte da conversa até ele;
 - o vocabulário de aprovação **já existe** em `lib/approval.js`.
 
-E uma coisa a resolver antes de confiar no fim do pipeline: a ressalva de
-`derivedFromAssetId` da seção 20. Um plano de produção que gere cenas encadeadas
-depende de a linhagem entre Assets ser real, e o Quality Gate mostrou que o
-caminho i2v **não** foi exercitado pelo agente.
+E a linhagem entre Assets — de que um plano de produção com cenas encadeadas
+depende — já é real e está verificada: `derivedFromAssetId` é gravado no
+livro-razão e no Asset, e o Quality Gate provou isso no produto (seção 20).
 
 ### As frentes que continuam abertas
 
-Nada aqui está escolhido, além do Quality Gate acima. É o mapa, com o que cada
+Nada aqui está escolhido, além do Passo 12 acima. É o mapa, com o que cada
 frente exige — a ordem é decisão de produto.
 
 | Frente | O que ela exige, concretamente |
 | --- | --- |
 | **Passo 12 — Production Planning** | **o próximo.** Documento → proposta narrativa → roteiro → cenas. O domínio já tem `scenes`; falta a ponte da conversa até ele |
-| **i2v pelo agente, com linhagem** | o Quality Gate mostrou que "anime essa imagem" NÃO passou `sourceAssetId`. Ver a ressalva da seção 20 |
 | **10.6 — Operational Hardening** | fila própria, backpressure, concorrência controlada, cancelamento seletivo, leases/multi-worker (limitação J) |
 | **OCR / PDF escaneado** | fora do Passo 11 por decisão. Hoje um PDF sem texto é recusado com honestidade |
 | **Conhecimento / RAG** | limitação G. Os chunks do Passo 11 não são isso |
@@ -2184,7 +2319,7 @@ Duas coisas que não são frentes, mas continuam pendentes e são baratas:
 
 ---
 
-## 22 · NON-NEGOTIABLE ARCHITECTURE RULES
+## 23 · NON-NEGOTIABLE ARCHITECTURE RULES
 
 Cada regra existe porque a alternativa já causou, ou causaria, um defeito
 concreto. Não são preferência de estilo.
@@ -2278,14 +2413,30 @@ concreto. Não são preferência de estilo.
     sanitizado. O arquivo se chama `source.<ext>` sob identificadores nossos, e
     o nome sobrevive apenas como rótulo. Sanitizar é uma corrida que se perde
     devagar; não participar da decisão é a única versão sem caso de borda.
-31. **O que é escrito uma vez é conflito, não sobrescrita.** `providerJobId` e
+31. **O modelo não referencia o que o servidor não ofereceu.** Um identificador
+    de Asset ou de documento nunca é lembrado nem inventado pelo modelo: o
+    servidor monta, no contexto privado do turno, a lista do que pode ser
+    referenciado. E ele OFERECE — não elege. Quando a lista tem mais de um
+    item e o pedido não desambigua, a resposta certa é perguntar; "o último" é
+    heurística, e heurística erra em silêncio exatamente quando há dois.
+32. **A execução é decidida pelo argumento estruturado, nunca pelo texto do
+    prompt.** `sourceAssetId` presente é image-to-video; ausente é
+    text-to-video. A palavra "anime" na frase do usuário é intenção, e resolver
+    intenção é trabalho do agente — deixá-la escolher o caminho do executor
+    faria a produção depender de como alguém escreveu uma frase.
+33. **Comportamento correto não é prova de mecanismo correto.** O Quality Gate
+    quase passou com um vídeo que parecia animar a imagem e não animava: era um
+    t2v com um prompt descritivo, e a linhagem nascia nula. Quando existe um
+    fato verificável no banco ou no executor, ele é a prova — o que a tela
+    mostra, não.
+34. **O que é escrito uma vez é conflito, não sobrescrita.** `providerJobId` e
     `assistantMessageId` aceitam o **mesmo fato** repetido (replay é idempotente)
     e recusam um fato diferente. É o que torna reconciliação e acompanhamento
     seguros rodando juntos.
 
 ---
 
-## 23 · Mapa de arquivos
+## 24 · Mapa de arquivos
 
 Só o que ajuda a navegar. Não é catálogo do repositório.
 
@@ -2310,7 +2461,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/agent/events.js` | o vocabulário público de eventos, e `publicAgentEvent` — a redução final antes do navegador |
 | `lib/server/agent/threads.js` | AgentThread / AgentMessage / vínculo de mídia |
 | `lib/server/agent/index.js` | barril de entrada |
-| `lib/server/agent/attachments.js` | o aviso privado ao modelo sobre os documentos do turno — é PRODUTO, não integração |
+| `lib/server/agent/attachments.js` | os avisos privados ao modelo — quais documentos o turno anexou, e quais imagens esta conversa pode referenciar. É PRODUTO, não integração |
 
 ### Runtime adapters
 
@@ -2430,6 +2581,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `tests/agent-document-reading.test.mjs` | o caminho inteiro, sem runtime real — 6 testes |
 | `tests/documents-boundary.test.mjs` | as fronteiras da ingestão — 9 testes |
 | `tests/agent-thread-continuity.test.mjs` | a continuidade da thread (seção 19) — 12 testes |
+| `tests/agent-image-to-video.test.mjs` | "anime essa imagem" → I2V com linhagem (seção 21) — 14 testes |
 | `tests/fixtures/documents/` | quatro PDFs mínimos versionados + o `gerar.mjs` que os produz |
 | `tests/smoke-hermes-real.mjs` | smoke real com Hermes — **fora** da suíte |
 | `tests/smoke-i2v-real.mjs` | smoke real de i2v — **fora** da suíte |
@@ -2446,7 +2598,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 ---
 
-## 24 · Convenções que valem a pena preservar
+## 25 · Convenções que valem a pena preservar
 
 - **Injeção de dependência no estilo da casa:** último parâmetro com default
   (`db = database()`, `root = RUNTIME_ROOT`, `deps = {}`). É o que torna tudo

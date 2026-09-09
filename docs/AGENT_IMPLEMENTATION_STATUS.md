@@ -7,8 +7,8 @@ está, o que é verdade, o que não é, e o que continua aberto.
 Ele não depende de `/tmp`, de scratchpad, de histórico de conversa nem da
 memória de nenhuma sessão.
 
-**Atualizado em:** 8 de setembro de 2026
-**HEAD documentado:** `8f57fa2c465220650da6e05c31a8662eac03b43a`
+**Atualizado em:** 9 de setembro de 2026
+**HEAD documentado:** `6a0a2b951091706927c4d504261717256520a5d5`
 
 > **Regra de precedência.** Se este documento divergir do código ou do Git, **o
 > código e o Git são a fonte de verdade**. Verifique antes de confiar. Foi
@@ -22,13 +22,15 @@ memória de nenhuma sessão.
 
 1. Leia este documento inteiro. Ele tem tudo o que você precisa para começar.
 2. `git status --short` — esperado: **vazio** (árvore limpa).
-3. `git log --oneline -5` — esperado: `8f57fa2` no topo.
-4. `npm test` — esperado: **853 testes, 853 passando, 0 falhando** (~3 min).
+3. `git log --oneline -5` — esperado: `6a0a2b9` no topo.
+4. `npm test` — esperado: **1010 testes, 1010 passando, 0 falhando** (~3 min).
 5. `npm run build` — esperado: compila limpo, 18 páginas estáticas.
-6. **Não refaça os Passos 1–9.** Eles estão prontos, testados e commitados.
-7. **Não há um próximo passo já escolhido.** A seção 16 registra o Passo 9 e
-   lista as frentes que continuam abertas, com o que cada uma exige. Escolher
-   entre elas é decisão de produto — não do próximo agente.
+6. **Não refaça os Passos 1–10.** Eles estão prontos, testados e commitados. O
+   **núcleo** do Passo 10 (10.0 a 10.5) está fechado; **10.6 é backlog** e não
+   bloqueia nada — ver seção 17.
+7. **O próximo passo está escolhido, e não é o Passo 11.** É o **QUALITY GATE —
+   CORE AUDIOVISUAL E2E** (seção 18): validar o produto real de ponta a ponta
+   antes de expandir escopo. Só depois dele vem o Passo 11 (ingestão de PDF).
 8. Preserve as **NON-NEGOTIABLE ARCHITECTURE RULES**. Elas não são estilo: cada
    uma existe porque a alternativa já causou, ou causaria, um defeito concreto.
 
@@ -45,20 +47,27 @@ ruído do `node:sqlite` no Node 24, não uma falha. Não suprima.
 | Nome do pacote | `showrunner-studio` (ver `package.json`) |
 | Branch | `main` |
 | Remote | `origin` → `https://github.com/douglas0712/showrunnerai.git` |
-| HEAD | `8f57fa2c465220650da6e05c31a8662eac03b43a` |
+| HEAD | `6a0a2b951091706927c4d504261717256520a5d5` |
 | Working tree | limpa |
-| Testes | 853 / 853 passando, 0 falhas |
+| Testes | 1010 / 1010 passando, 0 falhas |
 | Build | limpo (`✓ Compiled successfully`, 18/18 páginas) |
 | Node | v24.x (usa `node:sqlite`, experimental) |
 | Next | 15.5.15 · React 19.2.8 |
 
-> `origin/main` está **sincronizado** com `main`, em `8f57fa2`. Nada existe só
-> localmente.
+> `origin/main` está **sincronizado** com `main`, em `6a0a2b9`. Nada existe só
+> localmente. (`git rev-list --left-right --count origin/main...main` → `0  0`.)
 
 ### Checkpoints importantes
 
 | Commit | O que entrou |
 | --- | --- |
+| `6a0a2b9` | **PASSO 10.5** — recuperação dos trabalhos ainda EM VOO no arranque (`/queue`), acompanhamento retomado, e `orphaned` honesto |
+| `beff9f0` | **PASSO 10.4** — recuperação, no arranque, dos trabalhos que terminaram durante a queda (`/history`) |
+| `a678f6c` | **PASSO 10.3** — o livro-razão ligado ao ciclo de vida real; Agent e Studio pela mesma porta |
+| `3d83813` | **PASSO 10.2** — `generation_jobs`, o livro-razão durável (migração 7) |
+| `b672460` | **PASSO 10.1** — vocabulário de estados independente de provider |
+| `4fd44f3` | **PASSO 10.0** — âncora durável do turno no ToolContext |
+| `f7f4586` | handoff do Passo 9 |
 | `8f57fa2` | **PASSO 9 — Job Autonomy**: o Showrunner leva sozinho até o fim a geração que começou; e a fronteira pública dos eventos de ferramenta foi fechada |
 | `c192779` | **"Nova conversa"** na AgentScreen (thread nova, nada apagado) |
 | `d22b7d7` | **Hermes vira o runtime padrão**; fail-closed; fim do fallback silencioso para Echo |
@@ -141,9 +150,15 @@ og.generate_image · og.generate_video · og.get_job
   │                devolve o Asset à mensagem que o pediu (seção 16)
   ▼
 generation facade         lib/server/generation/facade.js
-  │
+  │                        a linha do livro-razão nasce ANTES do submit
   ▼
 workflow registry → ComfyUI → Jobs → Assets
+                                       ▲
+                                       │
+arranque do processo ──► instrumentation.js ──► lib/server/generation/reconcile.js
+                          reconcilia o que ficou aberto: finaliza o que terminou
+                          durante a queda e retoma o acompanhamento do que ainda
+                          está em voo (seção 17)
 ```
 
 Repare que o desenho é **invertido no meio**: a conversa desce do Showrunner
@@ -161,8 +176,10 @@ explicado no cabeçalho de `HermesRuntimeAdapter.js`.
 | Scenes | `lib/server/domain/scenes.js` |
 | Assets | `lib/server/domain/assets.js` |
 | AgentThreads / AgentMessages | `lib/server/agent/threads.js` |
-| Jobs | `lib/server/comfy/jobs.js` |
+| Jobs (memória do processo) | `lib/server/comfy/jobs.js` |
+| **o trabalho de geração, durável** | `lib/server/domain/generationJobs.js` |
 | levar uma geração iniciada até o fim | `lib/server/agent/tools/jobWatch.js` |
+| retomar o que ficou aberto num reinício | `lib/server/generation/reconcile.js` |
 | mídia (bytes, publicação, serviço) | `lib/server/generation/` |
 | tool registry e ToolContext | `lib/server/agent/tools/` |
 | session binding | `lib/server/agent/hermes/sessionBinding.js` |
@@ -437,7 +454,7 @@ em qual projeto gerar seria um agente sem fronteira.
 SQLite via `node:sqlite` (zero dependências novas), em `runtime/showrunner.db`.
 Migrações versionadas por `PRAGMA user_version`, em `lib/server/domain/db.js`.
 
-**`ESQUEMA_ATUAL = 6`** (seis migrações aplicadas).
+**`ESQUEMA_ATUAL = 7`** (sete migrações aplicadas).
 
 | # | Migração | Entidade |
 | --- | --- | --- |
@@ -446,10 +463,51 @@ Migrações versionadas por `PRAGMA user_version`, em `lib/server/domain/db.js`.
 | 4 | `runtime_sessions` | vínculo sessão ↔ thread |
 | 5 | `agent_message_assets` | mídia de uma mensagem, por referência |
 | 6 | `runtime_sessions.bridgeSessionId` | o segundo nome da mesma sessão |
+| 7 | `generation_jobs` | **o livro-razão durável de gerações** (Passo 10.2) |
 
 Tabelas `STRICT`, chaves estrangeiras ligadas, `CHECK` gerado a partir dos
 vocabulários que já existem em `lib/storyboard.js` e `lib/approval.js` — não há
 lista de status duplicada em SQL para divergir.
+
+### `generation_jobs` — o livro-razão de gerações (Passo 10.2)
+
+A tabela que faz uma geração sobreviver ao processo. `lib/server/domain/generationJobs.js`
+é a única porta de escrita; `lib/server/domain/generationJobStates.js` é o
+vocabulário.
+
+| Campo | Papel |
+| --- | --- |
+| `jobId` | **PK**. O mesmo id que vai no `filename_prefix` da submissão |
+| `projectId` | dono, sempre server-side |
+| `threadId` · `userMessageId` | de qual conversa e de qual **turno** o trabalho é (âncora do 10.0) |
+| `assistantMessageId` | a resposta onde a mídia aparece — **escrita única** |
+| `kind` · `workflowId` | o que é, e por qual descriptor |
+| `providerJobId` | o `prompt_id` do executor — **escrita única**, `UNIQUE` parcial |
+| `state` | o estado de domínio (ver 10.1) |
+| `assetId` | o resultado real; `REFERENCES assets(id)` sem `ON DELETE` |
+| `derivedFromAssetId` | linhagem (i2v), gravada na criação |
+| `error` | texto curto de operador, só em `failed`/`orphaned` |
+| `createdAt` · `submittedAt` · `finishedAt` · `updatedAt` | a linha do tempo |
+
+Índices: `UNIQUE(providerJobId)` parcial, `(state, createdAt)` para os abertos,
+`(threadId, createdAt)` para a conversa.
+
+Invariantes, garantidos por `CHECK` no banco e pelas operações:
+
+- **`done` ↔ `assetId`**: não existe concluído sem resultado, nem resultado sem
+  concluído. `completeGenerationJob` é o **único** caminho até `done`.
+- **terminal ↔ `finishedAt`**: `done`, `failed`, `cancelled`, `orphaned` têm hora
+  de fim; os abertos não têm.
+- **terminal não reabre.** Uma tentativa de voltar a um estado aberto é recusada.
+- **`error` só em `failed`/`orphaned`.**
+- **Escrita única** em `providerJobId` e `assistantMessageId`: repetir o **mesmo
+  fato** é no-op (replay é idempotente); afirmar um **fato diferente** é conflito
+  e é recusado, nunca sobrescrito.
+- O Asset apontado não pode ser apagado isoladamente (a FK é `NO ACTION`, e a
+  recusa é medida em teste); `DELETE` de Project continua íntegro, porque o
+  `CASCADE` do projeto resolve tudo dentro da mesma instrução.
+- Nenhuma tabela nasceu para o **acompanhamento**. O livro-razão registra o
+  TRABALHO, não a vigília.
 
 ### Project: o mesmo id no frontend e no backend
 
@@ -509,6 +567,11 @@ sourceAssetId
   → vídeo
   → Asset derivado (derivedFromAssetId aponta para a imagem)
 ```
+
+Desde o Passo 10.3, **as duas** entradas (agent tools e telas do estúdio)
+atravessam `lib/server/generation/facade.js`, e a linha do livro-razão nasce
+**antes** de o executor ser chamado. As rotas `/api/comfy/generate|status|result`
+não alcançam mais o provider por fora para o ciclo de vida.
 
 ### Regras do Asset (`lib/server/generation/facade.js`)
 
@@ -648,7 +711,7 @@ Nomes de arquivos de modelo exigidos estão nos descriptors. **Nenhuma credencia
 
 ### Testes determinísticos — `npm test`
 
-**853 testes, 853 passando, 0 falhando.** 54 arquivos `tests/*.test.mjs`, com
+**1010 testes, 1010 passando, 0 falhando.** 59 arquivos `tests/*.test.mjs`, com
 `node:test`, sem dependências. Sem rede, sem GPU, sem runtime externo, sem
 credencial. Vários são regressões de falhas reais e trazem a causa documentada
 no cabeçalho: se um quebrar, o refactor está errado, não o teste.
@@ -667,6 +730,11 @@ Categorias notáveis:
 | `agent-tools-security.test.mjs` | o modelo não controla identidade nem caminho |
 | `agent-job-autonomy.test.mjs` | o acompanhamento inteiro: autonomia, ciclo de vida, propriedade |
 | `agent-event-surface.test.mjs` | o que um evento de ferramenta pode mostrar ao navegador |
+| `agent-turn-anchor.test.mjs` | a âncora do turno no ToolContext (10.0) — 18 testes |
+| `generation-job-states.test.mjs` | o vocabulário de estados e a tradução do provider (10.1) — 18 testes |
+| `domain-generation-jobs.test.mjs` | o livro-razão: escrita única, terminais, `done` ↔ Asset (10.2) — 50 testes |
+| `generation-ledger-lifecycle.test.mjs` | o livro-razão dentro do ciclo real, pelas duas portas (10.3) — 27 testes |
+| `generation-reconcile.test.mjs` | a recuperação de arranque inteira (10.4 + 10.5) — 44 testes |
 
 O runtime falso vive em `tests/helpers/runtimeFalso.mjs`.
 
@@ -680,6 +748,14 @@ intermediário que não cria Asset; DONE que cria; associação com a mensagem
 certa; outra fala no meio que não rouba o resultado; "Nova conversa"; falha;
 teto; ciclo de vida do registro (`L1`–`L10`); e a não-durabilidade após
 reinício, que é afirmada, não escondida.
+
+**`generation-reconcile.test.mjs`** (44 testes) é determinístico do mesmo jeito:
+o `/history` e o `/queue` do executor são objetos, a finalização é injetada, o
+banco é em memória, e o acompanhamento usa o **freio** do Passo 9. Cobre os dois
+restarts de ponta a ponta — com o trabalho `running` e com ele `queued` —, a
+recuperação do `providerJobId` pelo `filename_prefix`, `orphaned` só com
+evidência completa, executor offline que **não** vira desfecho, e as varreduras
+de fonte que proíbem ressubmissão, modificação de fila, Hermes e navegador.
 
 **`agent-event-surface.test.mjs`** (12 testes) tranca a fronteira pública:
 ausência de `jobId` no SSE e na resposta de uma vez, ausência dos `arguments`
@@ -708,8 +784,15 @@ Scripts: `tests/smoke-hermes-real.mjs` e `tests/smoke-i2v-real.mjs`.
 | reload recupera a mídia | referência em `agent_message_assets` |
 | Echo não é mais o padrão | conversa sem variável nenhuma responde como Showrunner |
 | Hermes offline dá erro seguro | runtime derrubado → 503 + `runtime_unavailable` + frase do produto |
+| **restart recupera geração concluída durante a queda** | Passo 10.4, medido: turno às 23:27:36 → ledger `running` com `providerJobId=42134beb…` → Next morto por **PID exato** (842993) às 23:28:01, ComfyUI e Hermes intocados → executor concluiu às 23:28:46 (ledger ainda `running`) → Next volta às 23:28:54 → reconciliação `abertos=1 → recuperados=1, naConversa=true` → `state: done`, `assetId: asset_mtthc4qr_a4b0dac8`, PNG real de **1.412.577 bytes** (1376×768) na resposta daquele turno, **zero nova submissão** |
+| **o gancho de arranque não quebra o bundle** | o mesmo smoke encontrou `UnhandledSchemeError: node:child_process` (`ffmpeg ← provider ← facade ← reconcile`) causando **500 em toda rota**, que nem `npm test` nem `npm run build` pegavam. Consertado com URL montada em runtime + `webpackIgnore` |
+| `/queue` e `filename_prefix` do executor real | Passo 10.5, leitura apenas: `/queue` responde `{queue_running, queue_pending}` pelo cliente do projeto, e uma execução real do histórico traz `filename_prefix: image/showrunner/<jobId>` no nó de gravação do descriptor (`158`) |
 
-Nada acima é suposição. O que **não** foi executado não está nesta tabela.
+Nada acima é suposição. O que **não** foi executado não está nesta tabela. Em
+particular: **o restart com o trabalho ainda EM VOO não foi provado com execução
+real** — a geração do Ideogram termina rápido demais para controlar a janela com
+segurança, e improvisar ali significaria matar processos no escuro. A prova desse
+caso é determinística (seção 17), e isso está dito, não escondido.
 
 ---
 
@@ -850,22 +933,26 @@ Era a limitação principal deste documento. O usuário precisava perguntar "e a
 para o trabalho progredir, porque quem consultava era o modelo e o turno dele
 acaba quando ele termina de falar.
 
-Resolvido em `8f57fa2`. Ver seção 16. **O que continua valendo** é a limitação
-**B** logo abaixo: o acompanhamento vive enquanto o processo viver.
+Resolvido em `8f57fa2`. Ver seção 16.
 
-### B. Jobs vivem em memória do processo
+### B. ~~Reiniciar o processo perdia o trabalho~~ — RESOLVIDO no Passo 10
 
-`lib/server/comfy/jobs.js` guarda um `Map` em `globalThis` (para sobreviver ao
-Fast Refresh do Next). **Reiniciar o servidor perde os handles dos jobs.**
+Era a limitação que sobrava do Passo 9: o job e o acompanhamento viviam num
+`Map` em `globalThis`, e um reinício perdia os dois.
 
-O acompanhamento do Passo 9 vive do mesmo jeito, e isso é deliberado: gravar o
-acompanhamento num banco enquanto o job continua em memória criaria uma linha
-durável apontando para um trabalho que já não existe — durabilidade de fachada,
-que é pior do que nenhuma. **Reiniciar o processo perde o acompanhamento junto
-com o job.** O que sobrevive é o que já estava no banco: Asset e o vínculo com a
-mensagem. Nenhuma tabela nasceu para o watcher, e há teste que falha se nascer.
-`recoverFromHistory` mitiga, mas só para o que tem o prefixo de saída da
-aplicação.
+O que mudou (seção 17): o **trabalho** agora é durável (`generation_jobs`), e o
+arranque reconcilia — o que terminou durante a queda é finalizado (10.4), e o que
+ainda está em voo volta a ser acompanhado (10.5).
+
+**O que continua sendo memória, deliberadamente**, é o registro do executor
+(`lib/server/comfy/jobs.js`) e o **acompanhamento** em si. Ele é andaime: o
+arranque o reconstrói a partir do livro-razão em vez de o persistir. Nenhuma
+tabela nasceu para o watcher, e há teste que falha se nascer.
+
+**O que ainda não é recuperável:** um trabalho antigo o bastante para sair da
+janela do histórico (`max(50, 4 × abertos)`) e que já não esteja na fila. Ele
+continua **aberto** — o que é honesto — e o arquivo publicado, se existir, ainda
+o resgata pelo segundo caminho.
 
 ### C. Reinício do runtime e retomada de sessão têm limitação conhecida
 
@@ -903,9 +990,15 @@ direção entre conversas.
 
 A arquitetura permite (a decisão está toda no servidor), mas nada foi construído.
 
-### J. Fila de produção durável não existe
+### J. Fila própria / backpressure não existem — **10.6, backlog**
 
-E há dois riscos concretos ligados a isso:
+O livro-razão durável existe desde o Passo 10.2, e a recuperação de arranque
+desde 10.4/10.5. O que **não** existe é o escalonador: fila própria, concorrência
+controlada, cancelamento seletivo e leases/multi-worker. Isso é o **Passo 10.6 —
+Operational Hardening**, adiado por decisão de produto. **Ele não bloqueia o
+produto hoje.**
+
+Os dois riscos concretos continuam valendo até lá:
 
 - **`/interrupt` do ComfyUI é global.** Cancelar um job interrompe o que estiver
   rodando, não necessariamente o alvo. Com um agente disparando jobs em paralelo
@@ -929,6 +1022,25 @@ Descreve "Fase 1, nenhum modelo é executado", enquanto Cinema, Vídeo, Ideogram
 o Agent geram de verdade. O README de integração
 (`integrations/hermes/README.md`) **está** atualizado.
 
+### M. Deploy `standalone` precisa revisar o gancho de arranque
+
+`instrumentation.js` monta a URL de `reconcile.js` em tempo de execução a partir
+de `process.cwd()`, com `webpackIgnore` — a única saída encontrada para o
+empacotador não arrastar `node:child_process` para um bundle que o rejeita (o
+erro está medido no cabeçalho do arquivo). **Isso pressupõe a árvore do projeto
+presente em disco no ambiente de execução**, que é o que este projeto já assume
+(`runtime/` é ancorado do mesmo jeito). Um deploy `next build --standalone`, que
+leva só o bundle, precisa revisitar esse ponto.
+
+### N. O estúdio ainda depende do laço da tela para progredir
+
+O acompanhamento server-side do Passo 9 é ligado a uma **conversa** — ele existe
+para levar o resultado até uma resposta. A geração iniciada pelas telas antigas
+do estúdio nasce sem `threadId`, então no arranque ela tem o **estado
+reconciliado** (e é finalizada se já terminou), mas **não** ganha acompanhamento:
+quem a leva ao fim continua sendo o navegador, em laço. Está testado como
+comportamento esperado, não escondido.
+
 ---
 
 ## 15 · Passos concluídos
@@ -948,6 +1060,13 @@ o Agent geram de verdade. O README de integração
 | **—** — Hermes como runtime padrão (fail-closed) | ✅ | `d22b7d7` |
 | **—** — "Nova conversa" | ✅ | `c192779` |
 | **9** — Job Autonomy + fechamento da fronteira pública de eventos | ✅ | `8f57fa2` |
+| **10.0** — Durable Turn Anchor (âncora do turno no ToolContext) | ✅ | `4fd44f3` |
+| **10.1** — estados de geração independentes de provider | ✅ | `b672460` |
+| **10.2** — livro-razão durável `generation_jobs` (migração 7) | ✅ | `3d83813` |
+| **10.3** — livro-razão ligado ao ciclo de vida real | ✅ | `a678f6c` |
+| **10.4** — recuperação dos trabalhos concluídos durante a queda | ✅ | `beff9f0` |
+| **10.5** — recuperação dos trabalhos em voo + `orphaned` | ✅ | `6a0a2b9` |
+| **10.6** — Operational Hardening (fila, backpressure, leases) | ⏸ **backlog** | — |
 
 ---
 
@@ -1153,24 +1272,278 @@ duas.
 
 ### Testes
 
-**853 / 853**, build limpo em 18/18 páginas. Ver seção 11 para o que os dois
-arquivos novos cobrem.
+**853 / 853** à época do Passo 9 (hoje **1010** — ver seção 11), build limpo em
+18/18 páginas.
 
 ---
 
-## 16.1 · O que está aberto
+## 17 · PASSO 10 CORE — DURABLE JOBS / RECOVERY ✅
 
-Nada aqui está escolhido. É o mapa das frentes que continuam abertas, com o que
-cada uma exige — a ordem é decisão de produto.
+**Concluído em `6a0a2b9`** (subpassos `4fd44f3`, `b672460`, `3d83813`, `a678f6c`,
+`beff9f0`, `6a0a2b9`). Implementado, testado, e o caso de recuperação de trabalho
+concluído foi provado com execução real.
+
+O Passo 9 fez o Showrunner levar sozinho até o fim a geração que começou —
+**enquanto o processo viver**. O Passo 10 fez isso sobreviver ao processo.
+
+> **10.6 é backlog e não bloqueia o produto.** Ver o fim desta seção.
+
+### 10.0 · Durable Turn Anchor (`4fd44f3`)
+
+Não nasceu tabela nenhuma: a âncora **já existia**. A mensagem do usuário é
+persistida *antes* de `runtime.run`, e o `id` dela é um identificador durável do
+turno. O que faltava era carregá-lo.
+
+O **ToolContext** passou a levar, sempre montado no servidor:
+
+```
+threadId · projectId · userMessageId · signal
+```
+
+O registro de turnos ativos (`hermes/bridge.js`) carrega o `userMessageId` pelo
+caminho Hermes → bridge → tool. **Nem o modelo, nem o Hermes, nem o navegador
+fornecem autoridade sobre esse valor** — vale a regra 5.
+
+É essa âncora que permite, depois de um reinício, devolver a mídia à resposta
+**daquele turno** sem nunca usar "a última mensagem".
+
+### 10.1 · Estados independentes de provider (`b672460`)
+
+O vocabulário do Showrunner, em `lib/server/domain/generationJobStates.js` (zero
+imports — é domínio):
+
+```
+preparing · submitted · queued · running · finalizing
+done · failed · cancelled · orphaned
+```
+
+Terminais: `done`, `failed`, `cancelled`, `orphaned`.
+
+- `lib/server/generation/jobStates.js` é **só reexportação** — a camada de
+  geração não é dona do vocabulário.
+- A tradução do estado do ComfyUI vive isolada em
+  `lib/server/generation/comfyJobState.js`, com **tabela fechada**: um estado
+  desconhecido do provider levanta erro em vez de virar um estado do produto.
+- `orphaned` **não tem** correspondente no provider. É um desfecho que só o
+  Showrunner pode declarar — ver 10.5.
+- **O domínio não depende de `generation/` nem do provider.** A direção da
+  dependência é uma regra, com teste.
+
+Para a conversa, `jobWatch.js` reduz esse vocabulário a quatro estados de
+produção. `orphaned` aparece ao usuário como falha ("Não consegui concluir esta
+geração."): a distinção existe para o operador, no log.
+
+### 10.2 · O livro-razão durável (`3d83813`)
+
+Migração **7**, tabela `generation_jobs` — campos, índices e invariantes estão na
+seção 7. O resumo do que ela garante:
+
+`jobId` é PK · `providerJobId` e `assistantMessageId` são **escrita única** ·
+`done` ↔ `assetId` real · terminal ↔ `finishedAt` · terminal **não reabre** ·
+`error` só em `failed`/`orphaned` · **replay do mesmo fato é idempotente, fato
+diferente é conflito** · o Asset do resultado não é apagável isoladamente ·
+`DELETE` de Project continua íntegro.
+
+### 10.3 · O livro-razão ligado ao ciclo real (`a678f6c`)
+
+A ordem, que é o ponto inteiro:
+
+```
+gerar jobId
+  → INSERT (preparing) ANTES do submit          ← se cair aqui, existe rastro
+  → provider aceita
+  → providerJobId (escrita única)
+  → estados observados sincronizados
+  → arquivo publicado e validado
+  → Asset real
+  → completeGenerationJob (o único caminho até done)
+  → assistantMessageId amarrado (escrita única)
+```
+
+E as **duas** portas passaram a atravessar a mesma facade: as agent tools e as
+telas do estúdio. `/api/comfy/generate`, `/status` e `/result` não alcançam mais
+o provider por fora para o ciclo de vida — o contrato HTTP delas não mudou.
+
+Duas distinções que o passo tranca:
+
+- **Teto ou exceção do acompanhamento ≠ falha do trabalho.** "Parei de vigiar"
+  não é "a GPU falhou". O ledger fica aberto e reconciliável.
+- **Falha ambígua de submissão fica reconciliável**, não vira desfecho inventado.
+
+### 10.4 · Recuperação do que terminou durante a queda (`beff9f0`)
+
+`instrumentation.js` (gancho `register()` do Next) dispara, **em segundo plano**,
+`lib/server/generation/reconcile.js`. O arranque não espera o executor, que é
+outro processo e pode subir depois. Dois guardas: não roda em `next build`, não
+roda fora do runtime `nodejs`.
+
+Como um trabalho concluído é reencontrado, em ordem:
+
+1. `/history` pelo `providerJobId`;
+2. o **nosso** `jobId`, extraído do nome do arquivo de saída — é assim que o
+   prefixo é montado na submissão, e é o que fecha a janela entre o `/prompt`
+   aceito e a anotação do identificador;
+3. o **resultado já publicado** no disco (`findMediaByJobId`).
+
+**Nunca ressubmete** — há teste que varre o fonte. E a propriedade (projeto,
+conversa, turno) vem **sempre do livro-razão**, nunca do caminho no disco: um
+teste prova que a varredura pode devolver `proj_b` e o Asset ainda nasce em
+`proj_a`.
+
+**Como a mensagem é restaurada**, deterministicamente:
+
+- se `assistantMessageId` já existe → é nela;
+- senão, pela âncora: `seq(userMessageId) + 1`, **e só se** essa mensagem for
+  `role=assistant` da **mesma** thread;
+- caso contrário, **não anexa**. Nunca "a última mensagem", nunca o maior `seq`,
+  nunca por texto ou por hora.
+
+Nesta subetapa a fila **não** era consultada, e `orphaned` **não** podia nascer:
+sem a segunda pergunta, "não encontrei" não significa "não existe".
+
+**Provado com execução real** (a tabela da seção 11 traz os tempos e os bytes):
+Showrunner morto por PID exato → ComfyUI continuou → a geração terminou → o
+Showrunner voltou → Asset recuperado → ledger `done` → a mídia voltou para a
+resposta certa → **zero nova submissão**. Esse smoke também encontrou o defeito
+de empacotamento do gancho, que nem `npm test` nem `npm run build` pegavam.
+
+**Limitação técnica registrada:** o carregamento por URL de runtime com
+`webpackIgnore` assume a árvore do projeto disponível em `process.cwd()` — ver
+limitação M.
+
+### 10.5 · Recuperação do que ainda está EM VOO (`6a0a2b9`)
+
+O caso mais comum: o processo volta e o trabalho **ainda está lá**. Sem ninguém
+olhando, a máquina de geração é *pull* e ele para para sempre.
+
+A reconciliação passou a fazer **duas** perguntas em massa, **uma leitura de cada
+por ciclo** — nunca uma requisição por trabalho:
+
+```
+/history   +   /queue      (em paralelo, falhando de forma independente)
+```
+
+Casamento por dois caminhos: pelo `providerJobId`, e pelo **nosso** `jobId`
+extraído do `filename_prefix` do nó de gravação do descriptor. Se o
+`providerJobId` se perdeu na janela de queda, ele é **recuperado do grafo que
+está na fila** — e continua sendo escrita única: outro identificador é recusado,
+não sobrescrito.
+
+```
+queue_pending  → queued
+queue_running  → running
+```
+
+Um trabalho vivo **retoma o MESMO acompanhamento do Passo 9** (`watchJob`), com o
+single-flight valendo: um acompanhamento existente é reutilizado, nenhum segundo
+mecanismo nasceu. Ele continua **sem Hermes e sem navegador** — nenhum dos dois
+precisa estar de pé (teste varre o fonte por `hermes`, `bridge`, `window`,
+`localStorage` e afins). E **sem ressubmeter**: a fila é lida, nunca modificada.
+
+Quando o acompanhamento retomado assenta, a mídia acha a resposta certa pela
+mesma regra determinística do 10.4 — ele não nasceu dentro de um turno, então
+quem sabe a que mensagem pertence é o livro-razão.
+
+**Precedência:** o histórico terminal vence a fila; o resultado publicado vence
+`orphaned`.
+
+**`orphaned` só nasce com evidência completa**, isto é, com as duas leituras
+respondidas:
+
+- o histórico saudável não conhece o trabalho, **e**
+- a fila saudável não conhece o trabalho, **e**
+- não existe resultado publicado.
+
+Ele é terminal, **não cria Asset**, e não é `failed`: inventar falha afirmaria
+sobre a GPU algo que ninguém observou. Tipicamente significa que o executor
+reiniciou.
+
+**Executor fora do ar nunca vira `orphaned`** — nem quando as duas leituras
+falham, nem quando falha só uma. O trabalho fica aberto, e um arranque futuro o
+reconcilia. Do mesmo modo, **teto ou exceção do acompanhamento retomado não vira
+falha do trabalho**.
+
+**Os dois restarts em voo foram provados deterministicamente, de ponta a ponta** —
+`running` e `queued`: processo A submete (submissões = 1) → a memória some e o
+SQLite fica → o executor ainda tem o trabalho → processo B reconcilia, retoma o
+acompanhamento e **não** conclui nada ainda → o executor termina → o
+acompanhamento retomado leva a `done`, com Asset, na resposta daquele turno, com
+**submissões ainda = 1** e sem duplicar Asset, linha ou vínculo.
+
+O smoke **real** desse caso não foi executado: a geração termina rápido demais
+para controlar a janela com segurança, e improvisar ali significaria matar
+processos no escuro.
+
+### 10.6 · Operational Hardening — **BACKLOG, não bloqueia**
+
+Fora do escopo por decisão de produto. O que ele contém:
+
+- **backpressure** (nada limita submissões simultâneas hoje);
+- **fila própria / scheduler**;
+- **concorrência controlada** (uma fila com concorrência 1 resolveria dois riscos
+  de uma vez);
+- **cancelamento seletivo** (o `/interrupt` do ComfyUI é **global** — por isso
+  ele nunca é chamado automaticamente, regra 20);
+- **leases / multi-worker** (hoje a reconciliação assume um processo).
+
+Nada disso impede o produto de funcionar agora. Ver limitação J.
+
+### Testes do Passo 10
+
+**1010 / 1010**, build limpo em 18/18 páginas. Cinco arquivos novos, 157 testes:
+`agent-turn-anchor` (18), `generation-job-states` (18),
+`domain-generation-jobs` (50), `generation-ledger-lifecycle` (27) e
+`generation-reconcile` (44).
+
+---
+
+## 18 · O que está aberto, e o próximo passo
+
+### NEXT — QUALITY GATE: CORE AUDIOVISUAL E2E
+
+**O próximo trabalho não é o Passo 11.** Antes de expandir escopo, o produto real
+precisa ser validado de ponta a ponta, à mão, com tudo de pé.
+
+O fluxo que precisa passar, inteiro, numa sessão só:
+
+```
+Nova conversa
+  → conversa normal com o Showrunner
+  → geração real de imagem
+  → a imagem aparece
+  → pedido natural: "agora anime essa imagem"
+  → EXATAMENTE o Asset anterior é usado
+  → i2v real
+  → o vídeo aparece
+  → derivedFromAssetId correto
+  → reload
+  → imagem + vídeo persistem
+  → sem duplicata
+  → sem precisar perguntar "e aí?"
+  → sem detalhe interno vazando para a tela
+```
+
+Cada uma dessas linhas corresponde a algo que já tem teste determinístico. O
+Quality Gate existe para provar que elas valem **juntas**, no produto real, com
+Hermes e ComfyUI de verdade — que é onde os defeitos de integração aparecem (foi
+assim que o Passo 10.4 encontrou o defeito de empacotamento).
+
+**Só depois dele:** PASSO 11 — Document Ingestion / PDF → Project.
+
+### As frentes que continuam abertas
+
+Nada aqui está escolhido, além do Quality Gate acima. É o mapa, com o que cada
+frente exige — a ordem é decisão de produto.
 
 | Frente | O que ela exige, concretamente |
 | --- | --- |
-| **Jobs duráveis / fila / recuperação** | é a continuação natural do Passo 9, e a única que **remove uma limitação já registrada** (B e J). Fila própria com concorrência 1 resolveria de uma vez o `/interrupt` global e a falta de backpressure |
-| **Ingestão de PDF/documentos** | destrava "transforme este PDF num documentário", que é o exemplo-guia do produto. Não há upload, parsing nem extração hoje (limitação F) |
+| **Passo 11 — ingestão de PDF/documentos** | destrava "transforme este PDF num documentário", que é o exemplo-guia do produto. Não há upload, parsing nem extração hoje (limitação F) |
+| **10.6 — Operational Hardening** | fila própria, backpressure, concorrência controlada, cancelamento seletivo, leases/multi-worker (limitação J) |
 | **Produção Script → Scene → Shot** | o domínio já tem Scene; falta a ponte da conversa até uma estrutura de roteiro |
 | **Conhecimento / RAG** | limitação G |
 | **Memória de projeto, personagens, continuidade** | limitação H — é o que faz um personagem parecer o mesmo entre cenas |
 | **Approvals** | o vocabulário já existe em `lib/approval.js`; falta o fluxo |
+| **Montagem final** | juntar os planos aprovados numa peça só |
 | **Multi-provider / nuvem** | hoje só ComfyUI local |
 | **WhatsApp e outros canais** | a arquitetura permite (toda decisão mora no servidor), nada foi construído — limitação I |
 | **Research Lab** | — |
@@ -1183,7 +1556,7 @@ Duas coisas que não são frentes, mas continuam pendentes e são baratas:
 
 ---
 
-## 17 · NON-NEGOTIABLE ARCHITECTURE RULES
+## 19 · NON-NEGOTIABLE ARCHITECTURE RULES
 
 Cada regra existe porque a alternativa já causou, ou causaria, um defeito
 concreto. Não são preferência de estilo.
@@ -1235,13 +1608,35 @@ concreto. Não são preferência de estilo.
     evento sanitizado faria a autonomia depender da superfície que existe para
     escondê-lo.
 22. **O acompanhamento é andaime, não obra.** Ele sai da memória depois de uma
-    janela curta. O que dura é o Asset e o vínculo com a mensagem, no banco.
-    Nenhuma tabela nasceu para ele, e não deve nascer sem um passo que decida
-    durabilidade de verdade.
+    janela curta, e **nenhuma tabela nasceu para ele** — há teste que falha se
+    nascer. O que dura é o TRABALHO (`generation_jobs`), o Asset e o vínculo com
+    a mensagem. Depois de um reinício o andaime é **reconstruído** a partir do
+    livro-razão, nunca lido de uma tabela de vigília.
+23. **A recuperação NUNCA ressubmete.** Reconciliar é observar: `/prompt` não é
+    chamado, a fila é lida e jamais modificada. Um reinício que regerasse
+    trabalho gastaria GPU sem ninguém pedir e produziria uma segunda mídia para o
+    mesmo pedido. Há teste que varre o fonte.
+24. **Ignorância não vira desfecho.** `orphaned` — e qualquer estado terminal
+    negativo — exige **evidência completa**: o executor precisa ter respondido, e
+    ter dito que não conhece o trabalho. Executor fora do ar é executor fora do
+    ar; teto ou exceção do acompanhamento é fim da vigília, não falha da GPU. Em
+    todos esses casos o trabalho fica **aberto**, e reconciliável.
+25. **A propriedade vem do livro-razão, nunca do disco nem do executor.** O
+    caminho de um arquivo diz **onde** ele está; de quem ele é já estava gravado.
+    Foi a falta disso que fazia a recuperação antiga jogar trabalho recuperado
+    numa pasta genérica.
+26. **A mídia recuperada volta pela âncora do turno**, não por "a última
+    mensagem": `assistantMessageId` se existir, senão `seq(userMessageId) + 1`
+    **conferindo papel e thread**, senão não anexa. Uma fala nova no meio, ou uma
+    conversa nova, não podem roubar o resultado.
+27. **O que é escrito uma vez é conflito, não sobrescrita.** `providerJobId` e
+    `assistantMessageId` aceitam o **mesmo fato** repetido (replay é idempotente)
+    e recusam um fato diferente. É o que torna reconciliação e acompanhamento
+    seguros rodando juntos.
 
 ---
 
-## 18 · Mapa de arquivos
+## 20 · Mapa de arquivos
 
 Só o que ajuda a navegar. Não é catálogo do repositório.
 
@@ -1307,7 +1702,10 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 | Caminho | Papel |
 | --- | --- |
-| `lib/server/generation/facade.js` | API de alto nível; onde o Asset nasce |
+| `lib/server/generation/facade.js` | API de alto nível; onde o Asset nasce e onde o livro-razão é escrito |
+| `lib/server/generation/reconcile.js` | **a recuperação de arranque**: `/history` + `/queue`, finalização, acompanhamento retomado, `orphaned` |
+| `lib/server/generation/jobStates.js` | reexportação do vocabulário do domínio (nada é decidido aqui) |
+| `lib/server/generation/comfyJobState.js` | tradução do estado do ComfyUI → estado do Showrunner, tabela fechada |
 | `lib/server/generation/mediaKinds.js` | tabela por tipo (diretório, MIME, extensões) |
 | `lib/server/generation/outputs.js` | descoberta de saída (puro) |
 | `lib/server/generation/mediaServing.js` | resolução de requisição de mídia, byte range |
@@ -1322,6 +1720,8 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | Caminho | Papel |
 | --- | --- |
 | `lib/server/domain/db.js` | conexão, esquema, **migrações** |
+| `lib/server/domain/generationJobStates.js` | **o vocabulário de estados de geração** — zero imports, é domínio |
+| `lib/server/domain/generationJobs.js` | **o livro-razão**: a única porta de escrita de `generation_jobs` |
 | `lib/server/domain/projects.js` | Project (`registerProject`, `ensureProject`) |
 | `lib/server/domain/scenes.js` | Scene |
 | `lib/server/domain/assets.js` | Asset e linhagem |
@@ -1337,6 +1737,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/comfy/client.js` | HTTP com o ComfyUI |
 | `lib/server/comfy/storage.js` | `validateSegment` e caminhos |
 | `lib/server/appRoot.js` | `APP_ROOT` descoberto |
+| `instrumentation.js` (raiz) | o gancho de arranque do Next — dispara a reconciliação em segundo plano |
 
 ### Workflows versionados
 
@@ -1348,9 +1749,14 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 | Caminho | Papel |
 | --- | --- |
-| `tests/*.test.mjs` | 54 arquivos, 853 testes, na suíte |
+| `tests/*.test.mjs` | 59 arquivos, 1010 testes, na suíte |
 | `tests/agent-job-autonomy.test.mjs` | o Passo 9 inteiro — 40 testes |
 | `tests/agent-event-surface.test.mjs` | a fronteira pública dos eventos — 12 testes |
+| `tests/agent-turn-anchor.test.mjs` | a âncora do turno (10.0) — 18 testes |
+| `tests/generation-job-states.test.mjs` | vocabulário e tradução de estados (10.1) — 18 testes |
+| `tests/domain-generation-jobs.test.mjs` | o livro-razão (10.2) — 50 testes |
+| `tests/generation-ledger-lifecycle.test.mjs` | o livro-razão no ciclo real (10.3) — 27 testes |
+| `tests/generation-reconcile.test.mjs` | a recuperação de arranque (10.4 + 10.5) — 44 testes |
 | `tests/helpers/runtimeFalso.mjs` | o runtime falso do adaptador |
 | `tests/smoke-hermes-real.mjs` | smoke real com Hermes — **fora** da suíte |
 | `tests/smoke-i2v-real.mjs` | smoke real de i2v — **fora** da suíte |
@@ -1367,7 +1773,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 ---
 
-## 19 · Convenções que valem a pena preservar
+## 21 · Convenções que valem a pena preservar
 
 - **Injeção de dependência no estilo da casa:** último parâmetro com default
   (`db = database()`, `root = RUNTIME_ROOT`, `deps = {}`). É o que torna tudo

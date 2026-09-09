@@ -19,6 +19,9 @@ test('Gateway fornece apenas definições públicas das tools', () => {
     'og.generate_image',
     'og.generate_video',
     'og.get_job',
+    // PASSO 13-B: a imagem DE UMA CENA. Distinta de og.generate_image, que
+    // gera para a conversa e não ocupa lugar nenhum na produção.
+    'project.generate_scene_image',
     // PASSO 12: o planejamento da produção — plano, roteiro e cenas.
     'project.get_production_plan',
     'project.get_scene',

@@ -337,6 +337,40 @@ UPDATE_SCENE_SCHEMA = {
     },
 }
 
+# ── a imagem de uma cena ───────────────────────────────────────────────────
+#
+# Note o que este schema NÃO tem: sceneId, mediaId, takeNumber, assetId, jobId,
+# workflow, modelo, provider. O endereço da cena é o NÚMERO dela, e o número do
+# take é do estúdio. Um campo de estado no schema é um campo que o modelo pode
+# preencher — e o primeiro que ele tenta preencher é justamente o que não é
+# dele.
+
+GENERATE_SCENE_IMAGE_SCHEMA = {
+    "name": "project_generate_scene_image",
+    "description": (
+        "Gera a imagem de UMA cena desta produção, pelo número dela. Use sempre que o "
+        "pedido for produzir a mídia de uma cena — \"gere uma imagem para a cena 1\". "
+        "Nunca use og_generate_image para isso: só esta ferramenta liga o resultado à "
+        "cena. O prompt é a direção visual, escrita a partir do que a cena diz que se vê. "
+        "Cada chamada cria um take NOVO, sem apagar o anterior. Responde assim que o "
+        "trabalho é aceito; o estúdio acompanha sozinho até o fim."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "ordinal": _SCENE_PROPERTIES["ordinal"],
+            "prompt": {
+                "type": "string",
+                "description": (
+                    "A direção visual desta imagem, em palavras de cinema: o que se vê, "
+                    "o enquadramento, a luz."
+                ),
+            },
+        },
+        "required": ["ordinal", "prompt"],
+    },
+}
+
 # A allowlist do plugin — a segunda das quatro barreiras. O nome pedido tem de
 # estar aqui para sequer virar uma mensagem no socket.
 _TOOLS = (
@@ -353,6 +387,7 @@ _TOOLS = (
     ("project_get_scene", GET_SCENE_SCHEMA),
     ("project_replace_scenes", REPLACE_SCENES_SCHEMA),
     ("project_update_scene", UPDATE_SCENE_SCHEMA),
+    ("project_generate_scene_image", GENERATE_SCENE_IMAGE_SCHEMA),
 )
 _ALLOWLIST = frozenset(name for name, _ in _TOOLS)
 

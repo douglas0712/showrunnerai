@@ -626,7 +626,14 @@ test('AA+AB. o repositório não conhece executor, runtime nem agente', async ()
 
   // Ele alcança o domínio e o vocabulário de estados, e nada além.
   const importados = [...codigo.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]).sort();
-  assert.deepEqual(importados, ['./db.js', './generationJobStates.js', './projects.js']);
+  // PASSO 13-B: `sceneMedia.js` entra porque concluir uma geração é o único
+  // evento durável que TODOS os caminhos atravessam — o acompanhamento vivo,
+  // a consulta da tela e a reconciliação depois de um reinício. É por isso
+  // que o vínculo com o take de cena mora aqui, e não em quem começou.
+  // Continua sendo tudo domínio: nenhum executor, runtime ou agente.
+  assert.deepEqual(importados, [
+    './db.js', './generationJobStates.js', './projects.js', './sceneMedia.js',
+  ]);
 });
 
 test('Z. nenhum DADO do livro-razão é servido ao navegador', async () => {

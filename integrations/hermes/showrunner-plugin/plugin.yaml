@@ -22,3 +22,4 @@ provides_tools:
   - project_get_scene
   - project_replace_scenes
   - project_update_scene
+  - project_generate_scene_image

@@ -115,6 +115,10 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     // esquecida seria a permissiva. Nenhum deles alcança generation/ — planejar
     // não gera mídia.
     'tools/handlers/productionPlan.js',
+    // PASSO 13-B: a cena descrita vira cena com imagem. É a ÚNICA ferramenta
+    // de produção que alcança generation/facade — planejar não gera, produzir
+    // sim. O que ela continua não alcançando é ComfyUI, workflow e provider.
+    'tools/handlers/productionSceneMedia.js',
     'tools/handlers/productionScenes.js',
     'tools/handlers/productionScript.js',
     'tools/handlers/readDocument.js',

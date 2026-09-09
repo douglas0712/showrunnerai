@@ -349,10 +349,12 @@ test('AF-bis. os argumentos de read_document também não atravessam', () => {
 // ── AG · os aliases do Hermes ───────────────────────────────────────────────
 
 test('AG. os aliases mapeiam só para as tools canônicas, e a tabela continua fechada', () => {
-  assert.deepEqual(hermesAliases().sort(), [
-    'og_generate_image', 'og_generate_video', 'og_get_job',
-    'project_list_documents', 'project_read_document',
-  ]);
+  // As duas do PASSO 11 estão na tabela. A lista FECHADA inteira é conferida em
+  // `hermes-aliases.test.mjs`, e é lá que ela deve viver: uma terceira cópia
+  // dela aqui seria mais um lugar para alguém esquecer de atualizar — e o lugar
+  // esquecido é sempre o que deixa passar.
+  assert.ok(hermesAliases().includes('project_list_documents'));
+  assert.ok(hermesAliases().includes('project_read_document'));
 
   assert.equal(toCanonicalToolName('project_list_documents'), 'project.list_documents');
   assert.equal(toCanonicalToolName('project_read_document'), 'project.read_document');

@@ -108,6 +108,12 @@ test('A. um banco no esquema 6 migra até o corrente sem perder nada, e sem back
       //
       // Toda tabela criada DEPOIS da 6 precisa sair, e na ordem em que as
       // chaves estrangeiras permitem: quem referencia sai antes do referenciado.
+      // PASSO 12: o planejamento sai primeiro — as cenas dependem do roteiro,
+      // e as fontes do plano dependem de `project_documents`.
+      db.exec('DROP TABLE production_scenes');
+      db.exec('DROP TABLE production_scripts');
+      db.exec('DROP TABLE production_plan_sources');
+      db.exec('DROP TABLE production_plans');
       db.exec('DROP TABLE agent_message_documents');
       db.exec('DROP TABLE document_chunks');
       db.exec('DROP TABLE project_documents');

@@ -14,3 +14,11 @@ provides_tools:
   - og_get_job
   - project_list_documents
   - project_read_document
+  - project_get_production_plan
+  - project_save_production_plan
+  - project_get_script
+  - project_save_script
+  - project_list_scenes
+  - project_get_scene
+  - project_replace_scenes
+  - project_update_scene

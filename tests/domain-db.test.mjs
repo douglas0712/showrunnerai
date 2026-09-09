@@ -32,8 +32,15 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
     'document_chunks',
     // PASSO 10.2: o livro-razão das gerações.
     'generation_jobs',
+    // PASSO 12: o planejamento da produção — plano, roteiro e cenas.
+    'production_plan_sources', 'production_plans', 'production_scenes',
+    'production_scripts',
     // PASSO 11: o material de referência do projeto.
     'project_documents',
+    // `scenes` é a tabela da migração 1, do storyboard da tela. O PASSO 12 NÃO
+    // a evoluiu: a cena de um plano de produção responde a outra pergunta, e
+    // mudar o significado de uma tabela publicada custaria mais do que ter as
+    // duas com nomes que dizem a que vieram.
     'projects', 'runtime_sessions', 'scenes',
   ]);
   db.close();
@@ -54,9 +61,13 @@ test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () =
   // do referenciador deixa o esquema num estado que a migração seguinte não
   // consegue reconstruir.
   antigo.exec(
+    // PASSO 12: o planejamento sai primeiro de todos — as cenas dependem do
+    // roteiro, o roteiro do projeto, e as fontes do plano E do documento.
+    'DROP TABLE production_scenes; DROP TABLE production_scripts; '
+    + 'DROP TABLE production_plan_sources; DROP TABLE production_plans; '
     // PASSO 11: os documentos referenciam projeto e mensagem, então saem antes
     // dos dois — a mesma regra de ordem que já valia para o livro-razão.
-    'DROP TABLE agent_message_documents; DROP TABLE document_chunks; '
+    + 'DROP TABLE agent_message_documents; DROP TABLE document_chunks; '
     + 'DROP TABLE project_documents; '
     + 'DROP TABLE generation_jobs; '
     + 'DROP TABLE agent_message_assets; DROP TABLE runtime_sessions; '

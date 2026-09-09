@@ -17,7 +17,17 @@ test('os aliases existem e mapeiam para os nomes canônicos', () => {
   assert.deepEqual(hermesAliases().sort(), [
     'og_generate_image', 'og_generate_video', 'og_get_job',
     // PASSO 11: o material de referência do projeto.
-    'project_list_documents', 'project_read_document',
+    'project_get_production_plan',
+    'project_get_scene',
+    'project_get_script',
+    'project_list_documents',
+    'project_list_scenes',
+    'project_read_document',
+    // PASSO 12: o planejamento da produção.
+    'project_replace_scenes',
+    'project_save_production_plan',
+    'project_save_script',
+    'project_update_scene',
   ]);
   assert.equal(toCanonicalToolName('og_generate_image'), 'og.generate_image');
   assert.equal(toCanonicalToolName('og_generate_video'), 'og.generate_video');

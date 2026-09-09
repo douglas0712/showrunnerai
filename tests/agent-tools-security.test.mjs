@@ -19,9 +19,18 @@ test('Gateway fornece apenas definições públicas das tools', () => {
     'og.generate_image',
     'og.generate_video',
     'og.get_job',
+    // PASSO 12: o planejamento da produção — plano, roteiro e cenas.
+    'project.get_production_plan',
+    'project.get_scene',
+    'project.get_script',
     // PASSO 11: o material de referência do projeto.
     'project.list_documents',
+    'project.list_scenes',
     'project.read_document',
+    'project.replace_scenes',
+    'project.save_production_plan',
+    'project.save_script',
+    'project.update_scene',
   ]);
 
   // Nenhuma tool tem execute() exposta

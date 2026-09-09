@@ -155,6 +155,188 @@ READ_DOCUMENT_SCHEMA = {
     },
 }
 
+# ── planejamento de produção ───────────────────────────────────────────────
+#
+# PASSO 12. O plugin continua sem saber o que é uma cena: ele encaminha, e quem
+# grava — e quem sabe de qual projeto o plano é — é o Showrunner.
+#
+# Nenhum destes schemas gera mídia. Planejar e gerar são coisas diferentes, e a
+# separação é do produto, não uma limitação: um plano de cenas precisa existir e
+# ser editável antes de qualquer segundo de GPU ser gasto nele.
+#
+# Repare, de novo, que nenhum schema carrega a identidade do projeto. Uma cena é
+# endereçada pela POSIÇÃO dela — "a cena 4" —, e a posição só tem significado
+# dentro do projeto que o Showrunner já conhece.
+
+GET_PRODUCTION_PLAN_SCHEMA = {
+    "name": "project_get_production_plan",
+    "description": (
+        "Devolve o plano de produção deste projeto: formato, duração alvo, logline, "
+        "tom, público e de quais documentos ele saiu; diz também se já há roteiro e "
+        "quantas cenas existem. Consulte antes de propor mudanças — o estado do "
+        "projeto é a autoridade, não a memória da conversa."
+    ),
+    "parameters": {"type": "object", "properties": {}, "required": []},
+}
+
+SAVE_PRODUCTION_PLAN_SCHEMA = {
+    "name": "project_save_production_plan",
+    "description": (
+        "Grava o plano de produção deste projeto, substituindo o anterior. Use quando "
+        "o usuário pedir para transformar um material ou uma ideia numa produção. "
+        "targetDurationSeconds é a duração pedida em segundos (\"dois minutos\" = 120). "
+        "Grave o plano ANTES do roteiro e das cenas."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Título da produção."},
+            "logline": {"type": "string", "description": "Uma frase que resume a produção."},
+            "synopsis": {"type": "string", "description": "A proposta narrativa, em um ou dois parágrafos."},
+            "format": {"type": "string", "description": 'Formato: "mini-documentário", "trailer", "vídeo institucional"…'},
+            "targetDurationSeconds": {"type": "integer", "description": "Duração alvo total, em segundos."},
+            "aspectRatio": {"type": "string", "description": 'Proporção: "16:9", "9:16", "1:1". Padrão "16:9".'},
+            "genre": {"type": "string", "description": "Gênero."},
+            "tone": {"type": "string", "description": "Tom: contemplativo, urgente, épico…"},
+            "audience": {"type": "string", "description": "Para quem é."},
+            "language": {"type": "string", "description": "Idioma da narração."},
+            "sourceDocumentIds": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "Os documentos deste projeto em que a proposta se baseia. Use "
+                    "identificadores que o estúdio informou; nunca invente um."
+                ),
+            },
+        },
+        "required": ["title", "targetDurationSeconds"],
+    },
+}
+
+GET_SCRIPT_SCHEMA = {
+    "name": "project_get_script",
+    "description": (
+        "Devolve o roteiro atual deste projeto, por inteiro, e quantas cenas existem "
+        "a partir dele. Consulte antes de reescrever."
+    ),
+    "parameters": {"type": "object", "properties": {}, "required": []},
+}
+
+SAVE_SCRIPT_SCHEMA = {
+    "name": "project_save_script",
+    "description": (
+        "Grava o roteiro deste projeto, substituindo o anterior. Exige que o plano de "
+        "produção já esteja gravado. Escreva o roteiro como texto corrido, na ordem em "
+        "que a produção acontece; depois divida-o em cenas. Reescrever o roteiro não "
+        "apaga as cenas."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Título do roteiro."},
+            "summary": {"type": "string", "description": "Resumo curto do que o roteiro cobre."},
+            "fullText": {"type": "string", "description": "O roteiro completo, em texto corrido."},
+        },
+        "required": ["title", "fullText"],
+    },
+}
+
+# A forma de uma cena, escrita uma vez. Duas cópias divergiriam, e a que
+# divergisse seria a que o modelo lê no dia errado.
+_SCENE_PROPERTIES = {
+    "ordinal": {
+        "type": "integer",
+        "description": (
+            "A posição da cena na produção, começando em 1. Numa gravação de todas as "
+            "cenas, os números vão de 1 até a quantidade de cenas, sem repetir e sem pular."
+        ),
+    },
+    "title": {"type": "string", "description": "Título curto da cena."},
+    "purpose": {"type": "string", "description": "O que esta cena quer comunicar."},
+    "durationSeconds": {"type": "integer", "description": "Duração da cena em segundos inteiros, maior que zero."},
+    "narration": {"type": "string", "description": "O texto narrado nesta cena."},
+    "visualDescription": {
+        "type": "string",
+        "description": (
+            "O que se vê: enquadramento, ambiente, luz, movimento de câmera. Em "
+            "linguagem de direção, não como instrução para um gerador."
+        ),
+    },
+}
+
+LIST_SCENES_SCHEMA = {
+    "name": "project_list_scenes",
+    "description": (
+        "Lista as cenas desta produção, na ordem, com número, título, propósito e "
+        "duração, mais a soma das durações comparada com a duração alvo. Use para saber "
+        "a estrutura atual antes de mudar qualquer coisa. A narração e a descrição "
+        "visual não vêm nesta lista."
+    ),
+    "parameters": {"type": "object", "properties": {}, "required": []},
+}
+
+GET_SCENE_SCHEMA = {
+    "name": "project_get_scene",
+    "description": (
+        "Devolve uma cena inteira desta produção, pelo número dela, incluindo narração "
+        "e descrição visual. Use antes de alterar uma cena."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {"ordinal": _SCENE_PROPERTIES["ordinal"]},
+        "required": ["ordinal"],
+    },
+}
+
+REPLACE_SCENES_SCHEMA = {
+    "name": "project_replace_scenes",
+    "description": (
+        "Grava o plano de cenas desta produção INTEIRO, de uma vez, substituindo o que "
+        "houver. Exige o plano e o roteiro gravados. Os números vão de 1 até a "
+        "quantidade de cenas, sem repetir e sem pular, e a soma das durações precisa "
+        "ficar perto da duração alvo — se não ficar, a gravação é recusada e a mensagem "
+        "diz o quanto falta. Use para CRIAR o plano de cenas; para mudar uma cena "
+        "depois, use project_update_scene."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "scenes": {
+                "type": "array",
+                "description": "As cenas da produção, na ordem.",
+                "items": {
+                    "type": "object",
+                    "properties": _SCENE_PROPERTIES,
+                    "required": ["ordinal", "title", "durationSeconds"],
+                },
+            },
+        },
+        "required": ["scenes"],
+    },
+}
+
+UPDATE_SCENE_SCHEMA = {
+    "name": "project_update_scene",
+    "description": (
+        "Altera UMA cena desta produção, pelo número dela; as outras não são tocadas. "
+        "Use sempre que o pedido for localizado — \"deixe a cena 3 mais dramática\", "
+        "\"reduza a cena 5 para 10 segundos\". Nunca regrave todas as cenas para mudar "
+        "uma. Informe apenas os campos que mudam."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "ordinal": _SCENE_PROPERTIES["ordinal"],
+            "title": _SCENE_PROPERTIES["title"],
+            "purpose": _SCENE_PROPERTIES["purpose"],
+            "durationSeconds": _SCENE_PROPERTIES["durationSeconds"],
+            "narration": _SCENE_PROPERTIES["narration"],
+            "visualDescription": _SCENE_PROPERTIES["visualDescription"],
+        },
+        "required": ["ordinal"],
+    },
+}
+
 # A allowlist do plugin — a segunda das quatro barreiras. O nome pedido tem de
 # estar aqui para sequer virar uma mensagem no socket.
 _TOOLS = (
@@ -163,6 +345,14 @@ _TOOLS = (
     ("og_get_job", JOB_SCHEMA),
     ("project_list_documents", LIST_DOCUMENTS_SCHEMA),
     ("project_read_document", READ_DOCUMENT_SCHEMA),
+    ("project_get_production_plan", GET_PRODUCTION_PLAN_SCHEMA),
+    ("project_save_production_plan", SAVE_PRODUCTION_PLAN_SCHEMA),
+    ("project_get_script", GET_SCRIPT_SCHEMA),
+    ("project_save_script", SAVE_SCRIPT_SCHEMA),
+    ("project_list_scenes", LIST_SCENES_SCHEMA),
+    ("project_get_scene", GET_SCENE_SCHEMA),
+    ("project_replace_scenes", REPLACE_SCENES_SCHEMA),
+    ("project_update_scene", UPDATE_SCENE_SCHEMA),
 )
 _ALLOWLIST = frozenset(name for name, _ in _TOOLS)
 

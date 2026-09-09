@@ -109,6 +109,14 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     // generation/ nem o sistema de arquivos — o texto já está no banco desde a
     // ingestão, e ler é uma consulta.
     'tools/handlers/listDocuments.js',
+    // PASSO 12: o planejamento da produção — plano, roteiro e cenas. Três
+    // arquivos e não oito porque cada um é dono da lista de campos editáveis
+    // da SUA entidade: separar get de save duplicaria essa lista, e a cópia
+    // esquecida seria a permissiva. Nenhum deles alcança generation/ — planejar
+    // não gera mídia.
+    'tools/handlers/productionPlan.js',
+    'tools/handlers/productionScenes.js',
+    'tools/handlers/productionScript.js',
     'tools/handlers/readDocument.js',
     'tools/index.js',
     // PASSO 9: o acompanhamento de uma geração depois que o turno acabou. Vive
@@ -272,11 +280,28 @@ test('nenhum id de nó de workflow aparece na camada de agente', () => {
 
 // ── 19 · nada de interface ──────────────────────────────────────────────────
 
+/**
+ * O `document` do NAVEGADOR — não a palavra portuguesa.
+ *
+ * A proibição existe para pegar o global do DOM. `/\bdocument\b/` pegava junto
+ * "mini-documentário" e "pós-documental": o hífen abre a palavra e o "á" a
+ * fecha, porque `\b` do JavaScript só conhece ASCII. E "documentário" é
+ * vocabulário do PRODUTO — a camada de agente descreve formatos audiovisuais em
+ * português, e ela não deveria ter de evitar uma palavra do domínio para
+ * satisfazer uma trava que não é sobre ela.
+ *
+ * A versão abaixo exige que `document` esteja SOZINHO como identificador:
+ * nada de letra, dígito, `_` ou hífen antes, e nada de letra acentuada depois.
+ * `document.getElementById` continua sendo pego; `documentId` já era pego pelo
+ * limite à direita, e continua fora — ele não é o global.
+ */
+const IDENTIFICADOR_DOCUMENT = /(?<![\w-])document(?![\w\u00C0-\u024F])/;
+
 test('19. a camada de agente não importa React, components/ nem StudioContext', () => {
   const proibidos = [
     /from\s+'react/, /from\s+"react/, /\breact\b/i,
     /components\//, /StudioContext/, /localStorage/, /sessionStorage/,
-    /\bwindow\b/, /\bdocument\b/, /useState|useEffect|useMemo/,
+    /\bwindow\b/, IDENTIFICADOR_DOCUMENT, /useState|useEffect|useMemo/,
     /lib\/storage/, /\.jsx/,
   ];
 

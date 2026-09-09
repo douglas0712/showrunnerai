@@ -83,20 +83,20 @@ test('só o PDF tem páginas, e a extensão de armazenamento vem da tabela', () 
 
 // ── 28 · migração ───────────────────────────────────────────────────────────
 
-test('28a. um banco novo nasce na versão 8, com as três tabelas novas', () => {
+test('28a. um banco novo nasce com as três tabelas de documento', () => {
   const db = openDatabase(path.join(RAIZ, 'novo.db'));
-  assert.equal(ESQUEMA_ATUAL, 8);
-  assert.equal(schemaVersion(db), 8);
+  // A versão é a corrente, não um número fixo: migrações novas entram depois
+  // desta, e o que este teste protege é a migração 8 — não a contagem delas.
+  assert.equal(schemaVersion(db), ESQUEMA_ATUAL);
+  assert.ok(ESQUEMA_ATUAL >= 8, 'a migração 8 precisa continuar existindo');
 
   const tabelas = db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
     .all().map((t) => t.name).filter((n) => !n.startsWith('sqlite_'));
 
-  assert.deepEqual(tabelas, [
-    'agent_message_assets', 'agent_message_documents', 'agent_messages',
-    'agent_threads', 'assets', 'document_chunks', 'generation_jobs',
-    'project_documents', 'projects', 'runtime_sessions', 'scenes',
-  ]);
+  for (const nova of ['project_documents', 'document_chunks', 'agent_message_documents']) {
+    assert.ok(tabelas.includes(nova), `${nova} não foi criada`);
+  }
   db.close();
 });
 
@@ -107,7 +107,12 @@ test('28b. migrar da versão 7 para a 8 preserva tudo o que já existia', () => 
   // o user_version diz 7. É o estado de qualquer banco criado antes deste passo.
   const antigo = openDatabase(caminho);
   antigo.exec(
-    'DROP TABLE agent_message_documents; DROP TABLE document_chunks; '
+    // PASSO 12: as tabelas do planejamento também não existiam na versão 7, e
+    // saem antes das de documento — `production_plan_sources` referencia
+    // `project_documents`.
+    'DROP TABLE production_scenes; DROP TABLE production_scripts; '
+    + 'DROP TABLE production_plan_sources; DROP TABLE production_plans; '
+    + 'DROP TABLE agent_message_documents; DROP TABLE document_chunks; '
     + 'DROP TABLE project_documents; PRAGMA user_version = 7',
   );
 
@@ -129,7 +134,7 @@ test('28b. migrar da versão 7 para a 8 preserva tudo o que já existia', () => 
   antigo.close();
 
   const migrado = openDatabase(caminho);
-  assert.equal(schemaVersion(migrado), 8);
+  assert.equal(schemaVersion(migrado), ESQUEMA_ATUAL);
 
   assert.equal(
     migrado.prepare('SELECT name FROM projects WHERE id = ?').get('proj_velho').name,
@@ -173,7 +178,7 @@ test('28c. reabrir o arquivo não reexecuta a migração 8', () => {
   primeira.close();
 
   const segunda = openDatabase(caminho);
-  assert.equal(schemaVersion(segunda), 8);
+  assert.equal(schemaVersion(segunda), ESQUEMA_ATUAL);
   assert.equal(getProjectDocument(doc.id, segunda).filename, 'pauta.pdf');
   assert.equal(countDocumentChunks(doc.id, segunda), 2);
   segunda.close();

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { newJobId, submitGeneration } from '@/lib/server/comfy/provider';
+import { newGenerationJobId, startGeneration } from '@/lib/server/generation/facade';
 import { logError, logInfo } from '@/lib/server/logs/logger';
 import { STAGES } from '@/lib/server/logs/stages';
 import { WorkflowError } from '@/lib/server/comfy/workflow';
@@ -42,7 +42,9 @@ export async function POST(request) {
 
   // O jobId nasce aqui, antes da validação, para que a primeira linha do log
   // já esteja amarrada ao job — senão os erros de parâmetro ficariam órfãos.
-  const jobId = newJobId();
+  // Ele vem pela camada de geração: é identificador do Showrunner, e esta rota
+  // não alcança mais o executor para nada.
+  const jobId = newGenerationJobId();
 
   const erro = validar(corpo) || validarQuadros(quadros);
   if (erro) {
@@ -62,18 +64,24 @@ export async function POST(request) {
   });
 
   try {
-    const job = await submitGeneration({
+    // Pela camada de geração: é ela que registra o trabalho no livro-razão
+    // ANTES de submeter, e depois anota o identificador que o executor devolve.
+    // Esta tela não nasce numa conversa, então o registro fica sem thread e sem
+    // turno — o que é a verdade, e o livro-razão sabe representá-la.
+    const { providerJob } = await startGeneration({
       jobId,
       frames: quadros,
       prompt: corpo.prompt,
       seed: corpo.seedLocked ? Number(corpo.seed) : null,
+      seedLocked: Boolean(corpo.seedLocked),
       durationSeconds: Number(corpo.durationSeconds),
       aspect: corpo.aspect,
       quality: corpo.quality,
       fps: NATIVE_FPS,
+    }, {
       projectId: corpo.projectId,
     });
-    return NextResponse.json(job, { status: 202 });
+    return NextResponse.json(providerJob, { status: 202 });
   } catch (error) {
     if (error instanceof UploadError) {
       return NextResponse.json({ error: error.message, detail: error.detail || null }, { status: 400 });

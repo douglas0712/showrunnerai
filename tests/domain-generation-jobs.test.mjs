@@ -610,10 +610,11 @@ test('AA+AB. o repositório não conhece executor, runtime nem agente', async ()
   assert.deepEqual(importados, ['./db.js', './generationJobStates.js', './projects.js']);
 });
 
-test('Z. nada desta tabela é servido ao navegador nesta etapa', async () => {
-  // O livro-razão é estado de servidor. Nenhuma rota, nenhum evento e nenhuma
-  // redução de cliente o alcança — e é assim que ele deve continuar até que um
-  // passo decida, explicitamente, o que dele é público.
+test('Z. nenhum DADO do livro-razão é servido ao navegador', async () => {
+  // O livro-razão é estado de servidor. As rotas de geração o mantêm — desde o
+  // PASSO 10.3 elas entram pela camada de geração, que registra e sincroniza —
+  // mas nenhuma DEVOLVE linha dele: o que sai continua sendo o recorte que a
+  // tela já consumia.
   const { readdir } = await import('node:fs/promises');
   const raiz = fileURLToPath(new URL('../app/api/', import.meta.url));
 
@@ -629,10 +630,19 @@ test('Z. nada desta tabela é servido ao navegador nesta etapa', async () => {
 
   for (const caminho of await arquivos(raiz)) {
     const fonte = await readFile(caminho, 'utf8');
-    assert.ok(
-      !/generation_jobs|GenerationJob/.test(fonte),
-      `${path.basename(path.dirname(caminho))}/${path.basename(caminho)} alcança o livro-razão`,
-    );
+    const rotulo = `${path.basename(path.dirname(caminho))}/${path.basename(caminho)}`;
+
+    // A tabela em si nunca é alcançada por uma rota.
+    assert.ok(!/generation_jobs/.test(fonte), `${rotulo} alcança a tabela`);
+    // E nenhuma operação do repositório é chamada de dentro de uma rota: o
+    // ciclo de vida do registro é da camada de geração.
+    for (const operacao of [
+      'createGenerationJobRecord', 'getGenerationJobRecord', 'setGenerationJobState',
+      'markGenerationJobSubmitted', 'completeGenerationJob', 'bindGenerationJobMessage',
+      'listOpenGenerationJobs', 'findGenerationJobByProvider',
+    ]) {
+      assert.ok(!fonte.includes(operacao), `${rotulo} chama ${operacao}`);
+    }
   }
 
   const cliente = await readFile(
@@ -641,21 +651,33 @@ test('Z. nada desta tabela é servido ao navegador nesta etapa', async () => {
   assert.ok(!/generation_jobs|GenerationJob/.test(cliente));
 });
 
-test('o ciclo de geração não foi ligado a esta tabela nesta etapa', async () => {
-  // Depois do PASSO 10.2 o produto se comporta exatamente como antes: a tabela
-  // fica vazia em runtime normal. Ligar a facade, o acompanhamento e o gateway
-  // é o passo seguinte, e é ele que deve mudar estes arquivos.
-  for (const relativo of [
-    '../lib/server/generation/facade.js',
-    '../lib/server/agent/tools/jobWatch.js',
-    '../lib/server/agent/gateway.js',
-  ]) {
-    const codigo = await codigoDe(relativo);
-    assert.ok(
-      !/generationJobs|createGenerationJobRecord|listOpenGenerationJobs/.test(codigo),
-      `${relativo} já escreve no livro-razão — isso é 10.3`,
-    );
-  }
+test('o ciclo de geração escreve no livro-razão — e só onde deve', async () => {
+  // Este teste era o inverso no PASSO 10.2, quando a tabela existia e nada
+  // escrevia nela. O 10.3 é exatamente a mudança que ele vigiava, e agora ele
+  // vigia o outro lado: QUEM pode escrever.
+  //
+  // A camada de geração possui o ciclo de vida do registro. O gateway amarra a
+  // mensagem do turno, que é o único fato que ele conhece e a geração não.
+  const facade = await codigoDe('../lib/server/generation/facade.js');
+  assert.match(facade, /createGenerationJobRecord/);
+  assert.match(facade, /markGenerationJobSubmitted/);
+  assert.match(facade, /completeGenerationJob/);
+
+  const gateway = await codigoDe('../lib/server/agent/gateway.js');
+  assert.match(gateway, /bindGenerationJobMessage/);
+
+  // O acompanhamento do agente NÃO escreve: ele observa pela facade, e é ela
+  // que anota. Três implementações da mesma sincronização divergiriam.
+  const watcher = await codigoDe('../lib/server/agent/tools/jobWatch.js');
+  assert.ok(
+    !/generationJobs|GenerationJobRecord|setGenerationJobState|completeGenerationJob/.test(watcher),
+    'o acompanhamento virou um segundo escritor do livro-razão',
+  );
+
+  // E ninguém escreve nele de dentro do adaptador do executor: o livro-razão é
+  // do Showrunner, não do ComfyUI.
+  const provider = await codigoDe('../lib/server/comfy/provider.js');
+  assert.ok(!/generationJobs|generation_jobs/.test(provider));
 });
 
 // ── as invariantes estruturais do livro-razão ───────────────────────────────

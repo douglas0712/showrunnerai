@@ -127,6 +127,10 @@ test('18. o Gateway não conhece nenhum runtime pelo nome — nem o Echo', () =>
   const importados = [...gateway.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(importados.sort(), [
     '../domain/db.js',
+    // PASSO 10.3: o turno amarra a mensagem do assistente ao registro durável
+    // da geração. É escrita de DOMÍNIO, e o domínio é o que esta camada pode
+    // alcançar — não a camada de geração, que continua fora do alcance.
+    '../domain/generationJobs.js',
     '../domain/projects.js',
     '../logs/logger.js',
     '../logs/stages.js',

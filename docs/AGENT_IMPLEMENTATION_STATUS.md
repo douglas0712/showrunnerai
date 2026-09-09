@@ -8,7 +8,7 @@ Ele não depende de `/tmp`, de scratchpad, de histórico de conversa nem da
 memória de nenhuma sessão.
 
 **Atualizado em:** 9 de setembro de 2026
-**HEAD documentado:** `6a0a2b951091706927c4d504261717256520a5d5`
+**HEAD funcional documentado:** `b2ce6b10f3c90e2661ef7a63b9433a906644a7ac`
 
 > **Regra de precedência.** Se este documento divergir do código ou do Git, **o
 > código e o Git são a fonte de verdade**. Verifique antes de confiar. Foi
@@ -22,16 +22,19 @@ memória de nenhuma sessão.
 
 1. Leia este documento inteiro. Ele tem tudo o que você precisa para começar.
 2. `git status --short` — esperado: **vazio** (árvore limpa).
-3. `git log --oneline -5` — esperado: `6a0a2b9` no topo.
-4. `npm test` — esperado: **1010 testes, 1010 passando, 0 falhando** (~3 min).
+3. `git log --oneline -5` — esperado: `b2ce6b1` no topo do trabalho funcional.
+4. `npm test` — esperado: **1114 testes, 1114 passando, 0 falhando** (~3 min).
 5. `npm run build` — esperado: compila limpo, 18 páginas estáticas.
-6. **Não refaça os Passos 1–10.** Eles estão prontos, testados e commitados. O
+6. **Não refaça os Passos 1–11.** Eles estão prontos, testados e commitados. O
    **núcleo** do Passo 10 (10.0 a 10.5) está fechado; **10.6 é backlog** e não
-   bloqueia nada — ver seção 17.
-7. **O próximo passo está escolhido, e não é o Passo 11.** É o **QUALITY GATE —
-   CORE AUDIOVISUAL E2E** (seção 18): validar o produto real de ponta a ponta
-   antes de expandir escopo. Só depois dele vem o Passo 11 (ingestão de PDF).
-8. Preserve as **NON-NEGOTIABLE ARCHITECTURE RULES**. Elas não são estilo: cada
+   bloqueia nada — ver seção 17. O **Passo 11** (ingestão de documentos) está
+   fechado — ver seção 18.
+7. **O Quality Gate audiovisual foi executado à mão, no produto real, e passou**
+   — com uma ressalva medida que você precisa ler antes de confiar na linhagem
+   de vídeo: seção 19.
+8. **O próximo passo é o PASSO 12 — PRODUCTION PLANNING** (seção 21). Ele ainda
+   não foi começado.
+9. Preserve as **NON-NEGOTIABLE ARCHITECTURE RULES**. Elas não são estilo: cada
    uma existe porque a alternativa já causou, ou causaria, um defeito concreto.
 
 `npm test` emite `ExperimentalWarning: SQLite is an experimental feature` — é
@@ -47,20 +50,25 @@ ruído do `node:sqlite` no Node 24, não uma falha. Não suprima.
 | Nome do pacote | `showrunner-studio` (ver `package.json`) |
 | Branch | `main` |
 | Remote | `origin` → `https://github.com/douglas0712/showrunnerai.git` |
-| HEAD | `6a0a2b951091706927c4d504261717256520a5d5` |
+| HEAD funcional | `b2ce6b10f3c90e2661ef7a63b9433a906644a7ac` |
 | Working tree | limpa |
-| Testes | 1010 / 1010 passando, 0 falhas |
+| Testes | 1114 / 1114 passando, 0 falhas |
 | Build | limpo (`✓ Compiled successfully`, 18/18 páginas) |
 | Node | v24.x (usa `node:sqlite`, experimental) |
 | Next | 15.5.15 · React 19.2.8 |
 
-> `origin/main` está **sincronizado** com `main`, em `6a0a2b9`. Nada existe só
-> localmente. (`git rev-list --left-right --count origin/main...main` → `0  0`.)
+> **Atenção:** `main` está **1 commit à frente de `origin/main`** neste momento.
+> O `b2ce6b1` foi criado localmente e o `git push` falhou por **autenticação** —
+> o remote é HTTPS e não havia credencial disponível na sessão. Nenhuma
+> configuração de Git foi alterada e nenhuma credencial foi gerada. Publique com
+> `git push origin main` quando puder autenticar.
+> (`git rev-list --left-right --count origin/main...main` → `0  1`.)
 
 ### Checkpoints importantes
 
 | Commit | O que entrou |
 | --- | --- |
+| `b2ce6b1` | **PASSO 11** — ingestão de documentos (migração 8) **e** a continuidade da mesma AgentThread quando o runtime recicla a sessão dele |
 | `6a0a2b9` | **PASSO 10.5** — recuperação dos trabalhos ainda EM VOO no arranque (`/queue`), acompanhamento retomado, e `orphaned` honesto |
 | `beff9f0` | **PASSO 10.4** — recuperação, no arranque, dos trabalhos que terminaram durante a queda (`/history`) |
 | `a678f6c` | **PASSO 10.3** — o livro-razão ligado ao ciclo de vida real; Agent e Studio pela mesma porta |
@@ -175,6 +183,8 @@ explicado no cabeçalho de `HermesRuntimeAdapter.js`.
 | Projects | `lib/server/domain/projects.js` |
 | Scenes | `lib/server/domain/scenes.js` |
 | Assets | `lib/server/domain/assets.js` |
+| **Documentos do Project** | `lib/server/domain/documents.js` |
+| **a ingestão deles (bytes, parser, storage)** | `lib/server/documents/` |
 | AgentThreads / AgentMessages | `lib/server/agent/threads.js` |
 | Jobs (memória do processo) | `lib/server/comfy/jobs.js` |
 | **o trabalho de geração, durável** | `lib/server/domain/generationJobs.js` |
@@ -210,11 +220,12 @@ GET  /api/health          diagnóstico, sem autenticação
 WS   /api/ws?token=…      a conversa, JSON-RPC 2.0
 ```
 
-E dentro do WebSocket, **três métodos e nada mais**:
+E dentro do WebSocket, **quatro métodos e nada mais**:
 
 | Método | Para quê |
 | --- | --- |
 | `session.create` | abre a conversa do lado do runtime |
+| `session.resume` | reabre, pelo id DURÁVEL, uma conversa que o runtime reciclou — devolve um id vivo novo para a MESMA conversa, com o histórico dela (Passo 11) |
 | `prompt.submit` | entrega a fala do usuário e começa o turno |
 | `session.interrupt` | cancela o turno em andamento |
 
@@ -306,6 +317,10 @@ O vínculo grava os dois (`runtime_sessions.sessionId` e `.bridgeSessionId`).
 Gravar só um fazia toda chamada de ferramenta ser recusada com "sessão
 desconhecida". Migração 6 do esquema.
 
+**O durável é a identidade da integração; o do gateway é substituível.** É essa
+assimetria que faz a retomada de sessão funcionar sem quebrar a ponte de
+ferramentas — ver a seção 19.
+
 ### Seleção de runtime — fail-closed
 
 Desde `d22b7d7`:
@@ -379,12 +394,20 @@ E para "oi": *"Oi! Sou o Showrunner. O que vamos criar hoje?"* — nunca
 ### Nomes canônicos (os únicos que o registry conhece)
 
 ```
-og.generate_image
+og.generate_image        o que a produção FAZ
 og.generate_video
 og.get_job
+
+project.list_documents   o que o projeto TEM
+project.read_document
 ```
 
 Definidos em `lib/server/agent/tools/handlers/`.
+
+O prefixo diz de quem é a coisa. Uma ferramenta `project.*` opera sobre o
+Project inteiro, atravessa conversas, e a autoridade dela é sempre o
+`projectId` do ToolContext. As duas de documento entraram no Passo 11 —
+seção 18.
 
 ### `og.get_job` deixou de ser o motor da autonomia
 
@@ -410,9 +433,11 @@ garantida pelo servidor, não por obediência a prompt.
 ### Aliases — detalhe EXCLUSIVO da integração Hermes
 
 ```
-og_generate_image  →  og.generate_image
-og_generate_video  →  og.generate_video
-og_get_job         →  og.get_job
+og_generate_image       →  og.generate_image
+og_generate_video       →  og.generate_video
+og_get_job              →  og.get_job
+project_list_documents  →  project.list_documents
+project_read_document   →  project.read_document
 ```
 
 Em `lib/server/agent/hermes/aliases.js`. Existem porque o provider por trás do
@@ -454,7 +479,7 @@ em qual projeto gerar seria um agente sem fronteira.
 SQLite via `node:sqlite` (zero dependências novas), em `runtime/showrunner.db`.
 Migrações versionadas por `PRAGMA user_version`, em `lib/server/domain/db.js`.
 
-**`ESQUEMA_ATUAL = 7`** (sete migrações aplicadas).
+**`ESQUEMA_ATUAL = 8`** (oito migrações aplicadas).
 
 | # | Migração | Entidade |
 | --- | --- | --- |
@@ -464,6 +489,7 @@ Migrações versionadas por `PRAGMA user_version`, em `lib/server/domain/db.js`.
 | 5 | `agent_message_assets` | mídia de uma mensagem, por referência |
 | 6 | `runtime_sessions.bridgeSessionId` | o segundo nome da mesma sessão |
 | 7 | `generation_jobs` | **o livro-razão durável de gerações** (Passo 10.2) |
+| 8 | `project_documents`, `document_chunks`, `agent_message_documents` | **o material de referência do Project** (Passo 11) |
 
 Tabelas `STRICT`, chaves estrangeiras ligadas, `CHECK` gerado a partir dos
 vocabulários que já existem em `lib/storyboard.js` e `lib/approval.js` — não há
@@ -508,6 +534,45 @@ Invariantes, garantidos por `CHECK` no banco e pelas operações:
   `CASCADE` do projeto resolve tudo dentro da mesma instrução.
 - Nenhuma tabela nasceu para o **acompanhamento**. O livro-razão registra o
   TRABALHO, não a vigília.
+
+### `project_documents` · `document_chunks` · `agent_message_documents` (Passo 11)
+
+O material de referência de uma produção. **Documento não é Asset**, e a
+distinção é de domínio, não de arrumação: um Asset é mídia que a produção
+PRODUZIU — tem `kind`, `mediaUrl`, aprovação e linhagem; um documento é material
+que ENTRA. Ninguém aprova um PDF, ninguém deriva um vídeo dele por
+`derivedFromAssetId`, e ele não é servido pela rota de mídia. Enfiá-lo em
+`assets` faria toda consulta de mídia passar a filtrar o que não é mídia.
+
+```
+Project
+  └─ project_documents        o material
+       └─ document_chunks     as unidades de leitura, ordenadas
+
+AgentMessage
+  └─ agent_message_documents  o que foi anexado ÀQUELE turno
+```
+
+| Tabela | Campos que importam |
+| --- | --- |
+| `project_documents` | `id` PK · `projectId` (CASCADE) · `filename` · `mimeType` (CHECK) · `sizeBytes` · `sha256` · `pageCount` (nulo quando o formato não tem páginas) · `textLength` · `createdAt` |
+| `document_chunks` | `PRIMARY KEY (documentId, ordinal)` — a chave **é** a ordem · `pageNumber` nulo ou > 0 · `text` |
+| `agent_message_documents` | `PRIMARY KEY (messageId, documentId)` — a deduplicação sai de graça · `seq` |
+
+**As duas perguntas que esta modelagem separa**, e que uma tabela só não
+conseguiria responder:
+
+- *o projeto tem este documento?* → `project_documents`
+- *este turno anexou este documento?* → `agent_message_documents`
+
+É essa separação que faz `"sobre o que é este PDF?"` ter resposta. Sem ela, a
+única interpretação possível de "este" seria "o último documento do projeto" —
+heurística que acerta enquanto houver um só e erra exatamente quando o usuário
+tem dois, que é quando ele mais precisa ser entendido.
+
+**O que deliberadamente NÃO está aqui:** caminho de arquivo (não há coluna; o
+caminho é derivado dos ids — ver seção 18), estado de ingestão (ela é síncrona:
+ou o documento existe pronto, ou não existe), e qualquer coisa de vetor.
 
 ### Project: o mesmo id no frontend e no backend
 
@@ -627,6 +692,11 @@ Características atuais:
 - **streaming real**, token a token;
 - **atividade de ferramenta em linguagem de produção** — "Gerando imagem…",
   "Verificando a produção…", nunca `og_generate_image`;
+- **anexo de documento** (Passo 11): botão "Anexar" (PDF/TXT), upload na hora da
+  escolha — é isso que permite mostrar nome, páginas e tamanho antes de a pessoa
+  terminar de escrever, e que faz uma recusa chegar enquanto ela ainda pode
+  trocar de arquivo. Chip removível antes do envio; o anexo sobrevive ao reload
+  porque o vínculo está no banco, não no navegador;
 - **imagem inline**; **vídeo** pelo `RealVideoPlayer`;
 - **mídia persistida** — sobrevive ao reload, porque a mensagem guarda a
   *referência* ao Asset (`agent_message_assets`) e a URL é lida do Asset;
@@ -689,7 +759,14 @@ reusada e uma thread nova são indistinguíveis na tela e diferentes no banco.
 | Pipeline | Modelo | Estado |
 | --- | --- | --- |
 | text-to-image | **Ideogram 4** (`ideogram4_t2i`) | **validado com geração real** |
-| image-to-video | **MiniMax H3** (`minimax_h3`) | **validado com geração real** |
+| vídeo | **MiniMax H3** (`minimax_h3_t2v`) | **validado com geração real** |
+
+> **O registry tem UM workflow de vídeo, e o id dele é `minimax_h3_t2v`.** O
+> caminho image-to-video não é outro workflow: é o MESMO grafo recebendo um
+> quadro inicial, montado pela facade quando `sourceAssetId` é informado. Isso
+> funciona e está coberto — mas o Quality Gate de 9 de setembro **não** o
+> exercitou, e a ressalva está medida na seção 20. Leia antes de afirmar que
+> "anime essa imagem" produz linhagem.
 
 - `workflows/ideogram4_t2i_api.json` — versionado no repositório, 29 nós.
   Descriptor em `lib/server/generation/workflows/ideogram4.js`.
@@ -711,8 +788,8 @@ Nomes de arquivos de modelo exigidos estão nos descriptors. **Nenhuma credencia
 
 ### Testes determinísticos — `npm test`
 
-**1010 testes, 1010 passando, 0 falhando.** 59 arquivos `tests/*.test.mjs`, com
-`node:test`, sem dependências. Sem rede, sem GPU, sem runtime externo, sem
+**1114 testes, 1114 passando, 0 falhando.** 66 arquivos `tests/*.test.mjs`, com
+`node:test`, sem dependências de teste. Sem rede, sem GPU, sem runtime externo, sem
 credencial. Vários são regressões de falhas reais e trazem a causa documentada
 no cabeçalho: se um quebrar, o refactor está errado, não o teste.
 
@@ -735,8 +812,17 @@ Categorias notáveis:
 | `domain-generation-jobs.test.mjs` | o livro-razão: escrita única, terminais, `done` ↔ Asset (10.2) — 50 testes |
 | `generation-ledger-lifecycle.test.mjs` | o livro-razão dentro do ciclo real, pelas duas portas (10.3) — 27 testes |
 | `generation-reconcile.test.mjs` | a recuperação de arranque inteira (10.4 + 10.5) — 44 testes |
+| `domain-documents.test.mjs` | o domínio do documento e a migração 7→8 (Passo 11) — 25 testes |
+| `document-ingestion.test.mjs` | a ingestão real: PDF, TXT, recusas, travessia de caminho — 22 testes |
+| `agent-document-tools.test.mjs` | as duas ferramentas de documento e a fronteira delas — 17 testes |
+| `agent-document-attachment.test.mjs` | o anexo do turno, e o que ele NÃO é — 13 testes |
+| `agent-document-reading.test.mjs` | o caminho inteiro, sem runtime real — 6 testes |
+| `documents-boundary.test.mjs` | o parser fora do bundle do cliente, e as camadas — 9 testes |
+| `agent-thread-continuity.test.mjs` | a conversa sobrevive à reciclagem da sessão (seção 19) — 12 testes |
 
-O runtime falso vive em `tests/helpers/runtimeFalso.mjs`.
+O runtime falso vive em `tests/helpers/runtimeFalso.mjs`. Ele ganhou, no Passo
+11, um ciclo de vida de sessões (`criarSessoesFalsas`) que imita o
+`ws_orphan_reap` sem esperar os 20 s de relógio de parede.
 
 **`agent-job-autonomy.test.mjs`** (40 testes) é determinístico por construção: a
 consulta é roteirizada, o relógio é injetado, e a espera entre consultas é um
@@ -785,6 +871,13 @@ Scripts: `tests/smoke-hermes-real.mjs` e `tests/smoke-i2v-real.mjs`.
 | Echo não é mais o padrão | conversa sem variável nenhuma responde como Showrunner |
 | Hermes offline dá erro seguro | runtime derrubado → 503 + `runtime_unavailable` + frase do produto |
 | **restart recupera geração concluída durante a queda** | Passo 10.4, medido: turno às 23:27:36 → ledger `running` com `providerJobId=42134beb…` → Next morto por **PID exato** (842993) às 23:28:01, ComfyUI e Hermes intocados → executor concluiu às 23:28:46 (ledger ainda `running`) → Next volta às 23:28:54 → reconciliação `abertos=1 → recuperados=1, naConversa=true` → `state: done`, `assetId: asset_mtthc4qr_a4b0dac8`, PNG real de **1.412.577 bytes** (1376×768) na resposta daquele turno, **zero nova submissão** |
+| **PDF real vira documento e o agente responde POR ELE** | Passo 11: `Prometeu_O_Fogo_da_Humanidade.pdf`, 6 páginas, 5.568 caracteres. "Sobre o que é?" → resposta correta; "resuma em 10 pontos" → 10 pontos fiéis; "proponha um mini-documentário de 2 minutos" → estrutura textual, sem gerar mídia |
+| **o agente responde por fatos que não pode saber de cor** | TXT com "Arkan Vale", "17 de março de 2187", "Elias Venn" — inventados. A resposta trouxe os três |
+| **leitura de documento maior que uma chamada** | PDF de 27 páginas / 43.333 caracteres → **2 chamadas** seguindo o `nextCursor`, até `eof` |
+| **PDF sem texto é recusado com honestidade** | 422, frase de OCR, zero linha no banco, zero arquivo órfão |
+| **o nome do arquivo não alcança o filesystem** | upload com `filename=../../../../etc/passwd` → 201, arquivo sob `runtime/documents/<projectId>/<documentId>/source.txt`, `/etc/passwd` intacto |
+| **a conversa sobrevive à reciclagem da sessão do runtime** | seção 19: 4 turnos na MESMA thread com 25 s de pausa; o runtime reciclou 4 vezes, o Showrunner reabriu 3, uma sessão durável só, zero `runtime_unavailable` |
+| **Quality Gate audiovisual, à mão, no navegador** | seção 20: identidade → T2I real → "anime essa imagem" → vídeo real → reload preserva mídia → nova conversa preserva a anterior. **Com a ressalva medida de `derivedFromAssetId`** |
 | **o gancho de arranque não quebra o bundle** | o mesmo smoke encontrou `UnhandledSchemeError: node:child_process` (`ffmpeg ← provider ← facade ← reconcile`) causando **500 em toda rota**, que nem `npm test` nem `npm run build` pegavam. Consertado com URL montada em runtime + `webpackIgnore` |
 | `/queue` e `filename_prefix` do executor real | Passo 10.5, leitura apenas: `/queue` responde `{queue_running, queue_pending}` pelo cliente do projeto, e uma execução real do histórico traz `filename_prefix: image/showrunner/<jobId>` no nó de gravação do descriptor (`158`) |
 
@@ -797,6 +890,21 @@ caso é determinística (seção 17), e isso está dito, não escondido.
 ---
 
 ## 12 · Como subir o ambiente
+
+> **Desenvolvimento local precisa de TRÊS processos**, e o Agent só funciona
+> inteiro com os três de pé:
+>
+> ```
+> ComfyUI            :8188     geração de mídia
+> Hermes dedicado    :8788     raciocínio
+> Next (dev)         :3100     o Showrunner
+> ```
+>
+> Faltando o Hermes, o Agent responde *"O assistente de criação está
+> temporariamente indisponível."* — que é o fail-closed funcionando, não um
+> defeito. Foi exatamente o que aconteceu no início do Quality Gate (seção 20).
+> O procedimento oficial de subida do runtime dedicado está em
+> `integrations/hermes/README.md`.
 
 ### A. Showrunner (Next dev)
 
@@ -912,7 +1020,8 @@ __pycache__/     *.pyc
 Consequências que importam:
 
 - **`runtime/` inteiro está fora do Git.** Isso inclui o `HERMES_HOME` dedicado,
-  o banco, os projetos, a mídia, os logs e o socket Unix.
+  o banco, os projetos, a mídia, os logs, o socket Unix e — desde o Passo 11 —
+  `runtime/documents/`, onde ficam os arquivos originais que o usuário anexou.
 - **`.env*` está fora do Git** — `.env.local` incluído.
 - Credenciais do provider (`runtime/hermes/home/.env`, `auth.json`) nunca entram.
 - O socket Unix (`runtime/hermes/bridge.sock`) nunca entra.
@@ -954,12 +1063,16 @@ janela do histórico (`max(50, 4 × abertos)`) e que já não esteja na fila. El
 continua **aberto** — o que é honesto — e o arquivo publicado, se existir, ainda
 o resgata pelo segundo caminho.
 
-### C. Reinício do runtime e retomada de sessão têm limitação conhecida
+### C. ~~Reinício do runtime e retomada de sessão têm limitação conhecida~~ — RESOLVIDO no Passo 11
 
-O `sessionId` do gateway morre com o processo do runtime. O `bridgeSessionId`
-durável é gravado, mas não há hoje um caminho de **reconexão** que revalide uma
-sessão órfã: se o runtime reiniciar no meio de uma conversa, o próximo turno
-daquela thread pode falhar até que uma sessão nova seja criada.
+Não havia caminho de reconexão que revalidasse uma sessão órfã, e o próximo turno
+daquela thread falhava. Hoje há: o turno seguinte restabelece a sessão por
+`session.resume` pelo id durável, preservando o histórico. Ver seção 19.
+
+Esta limitação era mais grave do que este texto sugeria — ela não dependia de o
+runtime **reiniciar**. Bastavam 20 segundos de silêncio, porque o runtime recicla
+sozinho as sessões cujo socket criador se desconectou. Foi o smoke do Passo 11
+que descobriu isso.
 
 ### D. Atividade temporária não é reconstruída no reload
 
@@ -972,14 +1085,38 @@ mostrar um trabalho que já terminou.
 não ganharam vínculo retroativo; a mídia dessas conversas antigas não reaparece
 no reload.
 
-### F. Ingestão de PDF/documentos não existe no Agent
+### F. ~~Ingestão de PDF/documentos não existe no Agent~~ — RESOLVIDO no Passo 11
 
-"Transforme este PDF em um documentário" ainda não é possível. Não há upload, não
-há parsing, não há extração.
+Havia upload nenhum, parsing nenhum, extração nenhuma. Hoje há: PDF com texto e
+TXT em UTF-8 viram documento do Project, e o agente os lê por ferramenta. Ver
+seção 18.
+
+**O que continua fora, e é decisão:** DOCX, PPTX, imagem e **OCR**. Um PDF
+escaneado é recusado com uma frase honesta, não processado por adivinhação.
+
+### F-bis. Um mesmo arquivo pode ser ingerido mais de uma vez
+
+Não há deduplicação por `sha256`. O mesmo PDF enviado duas vezes vira dois
+documentos — foram dois gestos do usuário, e escolher qual dos dois nomes
+"vence" seria uma decisão que ninguém pediu. O agente lida com a ambiguidade
+perguntando (comprovado no smoke).
+
+### F-ter. Upload removido antes do envio permanece como ProjectDocument
+
+O arquivo sobe assim que é escolhido — é isso que permite mostrar páginas e
+tamanho antes de a pessoa terminar de escrever, e que faz uma recusa ("este PDF
+não tem texto") chegar enquanto ela ainda pode trocar de arquivo.
+
+Tirar o chip antes de enviar remove o **anexo do turno**; o documento continua no
+Project. Não há coletor de lixo, e não deveria haver um sem antes decidir o que
+fazer com um documento que outra conversa já pode ter citado.
 
 ### G. RAG não existe
 
-Sem base de conhecimento, sem embeddings, sem recuperação.
+Sem base de conhecimento, sem embeddings, sem vector DB, sem recuperação por
+semelhança. **Os chunks do Passo 11 não são isso**: eles são paginação
+determinística, para o agente conseguir percorrer um documento inteiro. Ver
+seção 18.
 
 ### H. Memória de projeto, personagens e continuidade não existem
 
@@ -1032,6 +1169,18 @@ presente em disco no ambiente de execução**, que é o que este projeto já ass
 (`runtime/` é ancorado do mesmo jeito). Um deploy `next build --standalone`, que
 leva só o bundle, precisa revisitar esse ponto.
 
+### N-bis. Os fixtures de PDF não estão marcados como binários no Git
+
+`tests/fixtures/documents/*.pdf` são PDFs sem compressão, escritos à mão — o Git
+os trata como TEXTO. Aqui isso é inofensivo (`core.autocrlf` e `core.eol` não
+estão definidos, e foi verificado que os blobs gravados são idênticos byte a
+byte aos arquivos).
+
+**Num clone Windows com `autocrlf=true`, a conversão de quebra de linha
+corromperia os fixtures** e os testes falhariam de forma misteriosa. Uma linha de
+`.gitattributes` (`tests/fixtures/documents/*.pdf binary`) resolve. Não foi feito
+porque estava fora do conjunto aprovado para aquele commit.
+
 ### N. O estúdio ainda depende do laço da tela para progredir
 
 O acompanhamento server-side do Passo 9 é ligado a uma **conversa** — ele existe
@@ -1067,6 +1216,9 @@ comportamento esperado, não escondido.
 | **10.4** — recuperação dos trabalhos concluídos durante a queda | ✅ | `beff9f0` |
 | **10.5** — recuperação dos trabalhos em voo + `orphaned` | ✅ | `6a0a2b9` |
 | **10.6** — Operational Hardening (fila, backpressure, leases) | ⏸ **backlog** | — |
+| **11** — Document Ingestion (PDF/TXT → Project → o agente lê) | ✅ | `b2ce6b1` |
+| **—** — Thread Continuity (a conversa sobrevive à reciclagem da sessão) | ✅ | `b2ce6b1` |
+| **—** — Quality Gate Core Audiovisual E2E (manual, no produto real) | ✅ | seção 20 |
 
 ---
 
@@ -1497,38 +1649,513 @@ Nada disso impede o produto de funcionar agora. Ver limitação J.
 
 ---
 
-## 18 · O que está aberto, e o próximo passo
+## 18 · PASSO 11 — DOCUMENT INGESTION ✅
 
-### NEXT — QUALITY GATE: CORE AUDIOVISUAL E2E
+**Concluído em `b2ce6b1`.** Implementado, testado, e validado com execução real.
 
-**O próximo trabalho não é o Passo 11.** Antes de expandir escopo, o produto real
-precisa ser validado de ponta a ponta, à mão, com tudo de pé.
-
-O fluxo que precisa passar, inteiro, numa sessão só:
+O exemplo-guia do produto — *"transforme este PDF num documentário"* — deixou de
+ser impossível. O que este passo entrega é a primeira metade dele:
 
 ```
-Nova conversa
-  → conversa normal com o Showrunner
-  → geração real de imagem
-  → a imagem aparece
-  → pedido natural: "agora anime essa imagem"
-  → EXATAMENTE o Asset anterior é usado
-  → i2v real
-  → o vídeo aparece
-  → derivedFromAssetId correto
-  → reload
-  → imagem + vídeo persistem
-  → sem duplicata
-  → sem precisar perguntar "e aí?"
-  → sem detalhe interno vazando para a tela
+DOCUMENTO → conteúdo estruturado dentro do Project
+          → o agente descobre, lê e raciocina sobre ele
 ```
 
-Cada uma dessas linhas corresponde a algo que já tem teste determinístico. O
-Quality Gate existe para provar que elas valem **juntas**, no produto real, com
-Hermes e ComfyUI de verdade — que é onde os defeitos de integração aparecem (foi
-assim que o Passo 10.4 encontrou o defeito de empacotamento).
+A segunda metade (roteiro, cenas, geração) é o Passo 12.
 
-**Só depois dele:** PASSO 11 — Document Ingestion / PDF → Project.
+### O que ele aceita, e o que recusa
+
+| | |
+| --- | --- |
+| **PDF com texto** | aceito. Páginas preservadas |
+| **TXT em UTF-8** | aceito. BOM permitido e removido |
+| **PDF escaneado / sem texto** | **recusado com honestidade** — ver abaixo |
+| DOCX · PPTX · imagem · OCR | fora, e não há atalho para eles |
+| embeddings · vector DB · RAG | **não existem**, e chunk não é embedding |
+
+Um PDF válido feito só de imagens produz **422** com uma frase que diz o que
+aconteceu e o que falta:
+
+> *"Este PDF não possui texto extraível. Documentos escaneados precisam de OCR,
+> que ainda não é suportado."*
+
+Nenhuma linha no banco, nenhum arquivo órfão, e **nada inventado a partir do
+nome do arquivo**. Adivinhar o conteúdo de um documento que não sabemos ler é
+exatamente o desfecho que este passo existe para não produzir.
+
+> **Chunk não é RAG.** Não há embedding, não há similaridade, não há recuperação
+> por semelhança. É **paginação determinística**: uma ordem estável em que o
+> agente consegue percorrer um documento maior que o contexto dele, e parar
+> antes se a pergunta for localizada.
+
+### Onde o arquivo bruto fica
+
+```
+runtime/documents/<projectId>/<documentId>/source.<ext>
+```
+
+Privado, fora do Git (`runtime/` inteiro já está no `.gitignore`), escrito com
+temporário + `rename` atômico.
+
+> **O nome que o usuário deu NUNCA participa do caminho.** Nem sanitizado, nem
+> escapado. O arquivo se chama sempre `source.<ext>`, a extensão vem da tabela
+> de tipos do domínio, e os dois segmentos do caminho são identificadores nossos
+> — que ainda assim passam por `validateSegment` e `assertInside`.
+>
+> Sanitizar um nome é uma corrida que se perde devagar: `../`, `..%2f`,
+> separador do Windows, NUL no meio, normalização Unicode que só acontece no
+> sistema de arquivos. **Não participar da decisão é a única versão que não tem
+> caso de borda.** O nome continua existindo, inteiro, como RÓTULO na coluna
+> `filename`.
+
+### Chunks
+
+- **PDF:** um chunk por página, com `pageNumber` preservado. Uma página maior
+  que o teto vira vários chunks com o **mesmo** número — a divisão é nossa, a
+  página é do documento. Página vazia não vira chunk nenhum.
+- **TXT:** blocos determinísticos, `pageNumber` nulo. Um TXT não tem páginas, e
+  inventar "página 1" faria o agente citar uma divisão que não existe.
+- **Garantia testada:** `dividir(t).join('') === t`. Nenhum caractere perdido,
+  duplicado ou reordenado — é isso que permite ao agente percorrer o documento
+  inteiro e **saber** que viu o documento inteiro.
+
+A normalização é a menor possível: fim de linha, caractere NUL, espaço em branco
+patológico. **Nada é "corrigido" por LLM** — o texto persistido precisa
+representar o documento do usuário, porque é sobre ELE que o agente vai afirmar
+coisas.
+
+### As duas ferramentas
+
+| Canônica | Entrada do modelo | Autoridade |
+| --- | --- | --- |
+| `project.list_documents` | **nenhuma** (schema vazio) | `ToolContext.projectId` |
+| `project.read_document` | `documentId`, `cursor?` | `ToolContext.projectId` |
+
+O schema de `list_documents` é vazio de propósito: o único parâmetro que ela
+poderia ter é `projectId`, e ele é exatamente o campo que o modelo nunca fornece
+(regra 5). Um `projectId` opcional no schema seria pior do que inútil — o modelo
+o preencheria de boa-fé, e a ferramenta teria de escolher entre obedecer (e
+vazar entre projetos) ou ignorar (e ter um campo que mente sobre o que faz).
+
+**Cross-project é bloqueado**, com uma implementação só
+(`getProjectDocumentIn`). "Existe mas é de outro projeto" e "não existe"
+devolvem a **mesma** resposta: distingui-las diria a quem perguntou que um id
+que ele não pode ver é válido.
+
+### Como a leitura pagina
+
+O cursor **é** o ordinal do próximo chunk — não um token opaco, não um
+deslocamento em caracteres. A leitura para quando o próximo chunk não caberia
+inteiro, e **nunca corta um chunk ao meio**: é isso que mantém o cursor sendo um
+número só. Um chunk maior que o teto é lido sozinho, para a leitura nunca travar
+naquele ponto. `eof` é **afirmado**, não deduzido de `nextCursor === null`.
+
+Para o documento inteiro, o agente itera `read_document → nextCursor → … → eof`.
+Não há laço no navegador. A instrução está em três lugares: a descrição da tool,
+o schema do plugin, e a persona — *"não diga que leu o documento inteiro se não
+chegou ao fim"*.
+
+### Limites, como estão no código
+
+| Constante | Valor | Onde |
+| --- | --- | --- |
+| `SHOWRUNNER_DOCUMENT_MAX_BYTES` | **25 MB** (padrão) → **413** | `documents/config.js` |
+| piso de arquivo | 8 bytes | `MIN_DOCUMENT_BYTES` |
+| `MAX_CHUNK_CHARS` | **4000** | `documents/config.js` |
+| `MAX_READ_CHARS` | **24000** | `domain/documents.js` |
+| anexos por turno | **12** | `agent/httpApi.js` |
+
+### O parser
+
+**`unpdf@1.8.1`** — MIT, **zero dependências**, build serverless do pdf.js. O
+único peer (`@napi-rs/canvas`, o binário nativo) é **opcional e não está
+instalado**: ele só serve para rasterizar, que não fazemos. Nada de OCR, Python,
+Poppler ou serviço em nuvem.
+
+Carregado por `await import('unpdf')` **dentro da função**, nunca no topo. Um
+import estático faria o empacotador arrastar o parser por toda cadeia que passe
+por ali — foi assim que um `node:child_process` derrubou TODA rota no Passo
+10.4, um defeito que nem `npm test` nem `npm run build` pegavam. Há teste que
+falha se o import virar estático, e teste que falha se o parser aparecer em
+qualquer arquivo do lado do cliente.
+
+### O anexo pertence ao TURNO
+
+O vínculo é gravado **antes** de `runtime.run` — o que o agente vai raciocinar
+sobre este turno precisa já ser um fato do banco, não uma intenção em memória.
+
+O **texto público da mensagem não é tocado**: a linha em `agent_messages` é
+exatamente o que o usuário escreveu. A metadata segura dos anexos vai ao runtime
+por `context.attachments`, e como ela chega ao modelo é decisão de cada
+adaptador — no Hermes, um preâmbulo privado (`agent/attachments.js`), porque
+aquele runtime aceita uma coisa por turno.
+
+Consequências, todas testadas:
+
+- uma fala nova **não rouba** o anexo da anterior;
+- uma conversa NOVA no mesmo Project **enxerga** o documento (ele é do Project)
+  e **não** o tem como anexo (ele não foi anexado àquele turno);
+- um documento de outro Project não entra, mesmo pedido pelo navegador.
+
+### O que NÃO atravessa para o navegador
+
+O texto lido, `chunks`, `nextCursor`, `ordinal`, os `arguments` da tool,
+`sha256`, `runtime/documents`, caminho absoluto. O `tool.completed` de
+`project.read_document` sai **sem `result`** — a redução final já descarta o
+resultado de qualquer ferramenta que não produza Asset (regra 21).
+
+O conteúdo de um documento **não tem endpoint público**. Quem o lê é o agente,
+server-side, pela ferramenta. Publicá-lo por HTTP criaria um segundo caminho
+para o mesmo dado, com a fronteira feita de novo — e a segunda cópia de uma
+fronteira é a que alguém esquece de fechar.
+
+### O que foi provado com execução real
+
+| Fato | Como foi provado |
+| --- | --- |
+| TXT vira documento e o agente responde POR ELE | fatos artificiais, impossíveis de saber de cor: *"Arkan Vale"*, *"17 de março de 2187"*, *"Elias Venn"*. Pergunta: "Em que data Arkan Vale foi fundada e quem foi o primeiro prefeito?" → resposta correta, uma chamada de ferramenta |
+| PDF real, com texto | `Prometeu_O_Fogo_da_Humanidade.pdf`, 6 páginas, 5.568 caracteres extraídos |
+| "Sobre o que é este documento?" | resposta correta sobre o roubo do fogo, a punição, Heracles, o sentido simbólico |
+| "Resuma em 10 pontos" | 10 pontos fiéis ao texto |
+| "Proponha um mini-documentário de 2 minutos" | estrutura completa com blocos 0:00–2:00, narração e direção visual. **Nenhuma mídia gerada** — o Passo 11 para na proposta textual |
+| **leitura em várias chamadas até `eof`** | PDF de **27 páginas / 43.333 caracteres** → **2 chamadas** seguindo o `nextCursor`, documento inteiro percorrido |
+| sem anexo, com dois PDFs parecidos no Project | o agente listou, encontrou ambiguidade e **perguntou qual** — em vez de escolher em silêncio |
+| PDF sem texto | **422** com a frase de OCR, zero linha no banco, zero arquivo órfão |
+| binário renomeado `.txt` | **415** |
+| PNG com nome `.pdf` | **415** |
+| `%PDF-` deslocado do offset zero | **415** |
+| travessia de caminho | upload com `filename=../../../../etc/passwd` → **201**, arquivo em `runtime/documents/<projectId>/<documentId>/source.txt`, `/etc/passwd` intacto, nome preservado como rótulo |
+| nada vaza no SSE | varredura automatizada dos arquivos SSE dos smokes: **todos limpos** |
+
+> Os arquivos usados nos smokes são materiais locais de quem executou. **Eles
+> não são contrato de produto** e não estão no repositório. Os fixtures
+> versionados ficam em `tests/fixtures/documents/` — quatro PDFs mínimos
+> escritos à mão, com `gerar.mjs` documentando como foram feitos.
+
+### Testes do Passo 11
+
+**6 arquivos novos, 92 testes** (mais 12 da continuidade — seção 19):
+
+| Arquivo | Testes | Protege |
+| --- | --- | --- |
+| `domain-documents.test.mjs` | 25 | migração 7→8, o domínio inteiro, a forma pública |
+| `document-ingestion.test.mjs` | 22 | PDF real, multipágina, TXT/BOM, MIME falso, binário, limite, sem texto, travessia |
+| `agent-document-tools.test.mjs` | 17 | ToolContext, cross-project, teto, cursor, eof, aliases, bridge |
+| `agent-document-attachment.test.mjs` | 13 | vínculo antes do `run`, reload, texto público intacto, conversa nova |
+| `agent-document-reading.test.mjs` | 6 | o turno inteiro com duplo, documento grande até `eof` |
+| `documents-boundary.test.mjs` | 9 | parser fora do bundle do cliente, camadas isoladas, rota fina |
+
+---
+
+## 19 · THREAD CONTINUITY ✅
+
+**Concluído em `b2ce6b1`, junto do Passo 11.** Um defeito **pré-existente**,
+encontrado pelo smoke real do Passo 11 e corrigido antes de fechar o passo.
+
+### O sintoma
+
+O primeiro turno funcionava. Um turno SEGUINTE da **mesma AgentThread** falhava:
+
+```
+503  runtime_unavailable
+"O assistente de criação está temporariamente indisponível."
+```
+
+E a única saída era o usuário clicar em "Nova conversa". Parecia intermitente:
+turnos rápidos passavam, turnos com pausa não.
+
+### A causa
+
+Está no runtime, e é deliberada lá. `tui_gateway/server.py`,
+`_schedule_ws_orphan_reap`: uma sessão cujo WebSocket criador se desconectou
+**e** que não está executando nada é recolhida depois de uma janela de carência
+(`HERMES_TUI_WS_ORPHAN_REAP_GRACE_S`, **20 s** por padrão).
+
+Esta integração abre **um socket por RPC e o fecha em seguida** — então **toda
+sessão nossa é órfã desde que nasce**. Meio minuto de silêncio entre duas falas
+do usuário bastava para o identificador guardado deixar de existir.
+
+```
+turno 1 → createSession → socket fecha → cronômetro de 20 s
+        → prompt.submit (chega em ms) → OK → socket fecha → novo cronômetro
+
+[o usuário lê a resposta e pensa]
+
+reaper dispara → sessão finalizada
+
+turno 2 → garantirSessao devolve o sessionId GUARDADO, sem conferir nada
+        → prompt.submit → 4001 "session not found"
+        → nenhum quadro foi recebido → comoIndisponivel()
+        → 503 runtime_unavailable
+```
+
+O Showrunner tratava *"a conversa do runtime foi reciclada"* (rotina) como
+*"o serviço não está disponível"* (instalação quebrada).
+
+### A regra, agora
+
+> **A AgentThread do Showrunner é DURÁVEL. Uma conexão WebSocket não é a
+> identidade da conversa.**
+
+```
+thread (durável, do Showrunner)
+  └─ runtime_sessions
+       ├─ bridgeSessionId  ← id DURÁVEL. Estável. É por ele que o plugin
+       │                     reconhece a sessão numa chamada de ferramenta.
+       └─ sessionId        ← id VIVO. Efêmero, rotativo, substituível.
+```
+
+Quando o vivo some, o turno seguinte o restabelece — e o usuário não precisa
+criar conversa nova, recarregar a página, nem saber que existe um runtime.
+
+Duas tentativas, **nesta ordem**:
+
+1. **`session.resume`** pelo id durável. O runtime reencontra a conversa no
+   armazenamento dele, **com o histórico**, e devolve um id vivo novo. O durável
+   não muda.
+2. **`session.create`**, só se reabrir for impossível. Degradação honesta: o
+   Showrunner mantém mensagens, documentos e Assets, e o agente reencontra o
+   material pelas ferramentas de documento.
+
+A ordem importa muito: nesta integração o adaptador manda ao runtime **apenas a
+última fala do usuário** — o histórico da conversa mora do lado de lá. Recriar
+sempre faria *"resuma esse documento"* chegar a um modelo que nunca viu
+documento nenhum.
+
+### Por que a detecção é conjuntiva
+
+`4001` **não** é "session not found" neste protocolo. Auditado no fonte da
+v0.20.3: ele é o **"400"** do runtime e aparece em **mais de vinte lugares**,
+para condições sem nenhuma relação com sessão — `"malformed server config"`,
+`"pcm frame too large"`, `"slug is required"`, `"invalid base64 pcm"`.
+
+Dentro de `prompt.submit`, hoje, ele tem origem única. Mas isso é um detalhe
+**interno** de um método de terceiro, e apostar nele significaria que um `4001`
+novo acrescentado ali no futuro viraria uma retomada silenciosa e errada.
+
+Então são **três condições, todas obrigatórias**:
+
+| Condição | Robustez |
+| --- | --- |
+| `rotulo === 'prompt.submit'` | **alta** — é um valor NOSSO, escrito por esta camada |
+| `codigo === 4001` | média — recusa por pré-condição, não erro de transporte |
+| `motivo` contém `session not found` | baixa — texto de terceiro |
+
+O texto entra porque o código é ambíguo e é o único campo estruturado que resta
+(`_err` produz apenas `{code, message}`). Ele entra **em conjunção** com dois
+sinais robustos.
+
+> **O modo de falhar foi escolhido, não sofrido.** Se o runtime reescrever a
+> frase, a detecção devolve `false`, o turno falha como falhava antes, e
+> NENHUMA sessão é restabelecida por engano. Errar para o lado de *não retomar*
+> repete um defeito conhecido; errar para o outro lado repetiria a fala do
+> usuário contra uma recusa que não era sobre sessão nenhuma.
+
+### Os limites da retomada
+
+- **No máximo uma vez por turno.** Sem teto, um runtime que recusasse toda
+  sessão viraria um laço infinito.
+- **Só enquanto NADA foi dito.** Repetir depois de o modelo ter começado a falar
+  produziria **duas respostas para um turno**.
+- **Turno cancelado não é retomado.** O usuário mandou parar; reabrir a conversa
+  para insistir seria o oposto de obedecer.
+- **O registro de turnos não vaza.** A sessão nova só é adotada no começo da
+  volta seguinte, então o `finally` sempre desanuncia o identificador que aquela
+  volta anunciou. Testado com `turns.size() === 0` após cada turno, com e sem
+  retomada.
+- **Uma linha de sessão por thread, sempre.** `rebindRuntimeSession` é
+  DELETE + INSERT numa transação, com `UNIQUE(threadId, runtimeId)`.
+
+### O que foi provado com execução real
+
+**Uma AgentThread, quatro turnos, 25 s de pausa entre eles** (carência = 20 s,
+para *garantir* que o reap acontecesse):
+
+| Turno | Ferramentas | Resultado |
+| --- | --- | --- |
+| "Sobre o que é este documento?" | `project.read_document` | ✅ |
+| "Agora resuma esse documento em 10 pontos." | — | ✅ |
+| "Com base nele, proponha um mini-documentário de 2 minutos." | — | ✅ |
+| "Qual foi a punição de Prometeu segundo o documento?" | — | ✅ |
+
+Evidência de que o defeito foi de fato exercitado:
+
+```
+reaps registrados pelo runtime:      4
+sessões DURÁVEIS criadas no smoke:   1
+retomadas no log do Showrunner:      3   (turnos 2, 3 e 4)
+linhas de sessão para a thread:      1
+```
+
+Uma sessão durável só, criada no turno 1, reciclada 4 vezes, reaberta 3. Zero
+`runtime_unavailable`, zero "Nova conversa" como contorno, oito mensagens em
+ordem sem duplicata, `threadId` idêntico do primeiro ao último turno, e nada de
+`hermes` / `session` / `ws_orphan_reap` nos eventos públicos.
+
+> Os turnos 2–4 responderam sobre o PDF **sem reler o documento**. Isso é a
+> prova de que foi `session.resume` e não `session.create`: o histórico do lado
+> do runtime sobreviveu.
+
+### Testes
+
+`tests/agent-thread-continuity.test.mjs` — **12 testes**. Com a correção
+revertida, **5 deles falham**, incluindo o central. O duplo
+(`criarSessoesFalsas`) imita o ciclo de vida real — distingue vivo de durável, e
+`reciclar()` é o reap sem esperar os 20 s de relógio de parede.
+
+Dois deles trancam a especificidade da detecção: `4001` com outras mensagens
+**não** dispara retomada; a combinação exata do runtime real **dispara**.
+
+---
+
+## 20 · QUALITY GATE — CORE AUDIOVISUAL E2E ✅
+
+**Executado À MÃO, no produto real, pelo navegador.** Não é teste automatizado e
+não roda em `npm test`.
+
+### Ambiente
+
+| Serviço | Endereço | Versão |
+| --- | --- | --- |
+| Showrunner (Next) | `127.0.0.1:3100` | — |
+| Hermes dedicado | `127.0.0.1:8788` | v0.20.3 |
+| ComfyUI | `127.0.0.1:8188` | — |
+
+### O fluxo comprovado
+
+1. **O Agent abriu normalmente.**
+2. **"quem é você?"** → *"Sou o Showrunner. Ajudo a transformar ideias e
+   materiais em imagens e vídeos, da conversa criativa até a geração da cena."*
+   Identidade correta; nenhum nome de runtime.
+3. **Geração real de imagem** pedida em linguagem natural → a imagem foi gerada
+   e apareceu no Agent.
+4. **"anime essa imagem"**, com instruções de movimento → o agente **entendeu a
+   referência à imagem anterior** e um vídeo foi gerado.
+5. **O vídeo apareceu na conversa.**
+6. **Não foi preciso mandar "e aí?"** — o acompanhamento do servidor levou a
+   geração até o fim sozinho (Passo 9).
+7. **Após reload (F5):** imagem e vídeo continuaram na conversa.
+8. **"Nova conversa":** abriu outra thread **sem apagar** a anterior.
+
+```
+conversa → identidade Showrunner → T2I real → Asset aparece
+         → referência natural "essa imagem" → vídeo real → vídeo aparece
+         → reload preserva a mídia → nova conversa preserva a thread anterior
+```
+
+### ⚠️ A ressalva medida — `derivedFromAssetId`
+
+**A linhagem NÃO foi gravada nesta execução, e isso foi verificado no banco.**
+
+Consulta read-only em `runtime/showrunner.db`, no projeto do Quality Gate:
+
+```
+image  2026-09-09T14:24:02Z  asset_mtu6vqxg_d7ad3d33   derivedFrom: —
+video  2026-09-09T14:32:23Z  asset_mtu76i49_63170f64   derivedFrom: —   ← nulo
+```
+
+E o livro-razão da geração de vídeo:
+
+```
+workflowId          minimax_h3_t2v      ← TEXT-to-video
+derivedFromAssetId  (nulo)
+```
+
+**O que isso quer dizer, com precisão:**
+
+- o comportamento **conversacional** funcionou: o agente entendeu *"essa
+  imagem"*, chamou `og.generate_video`, e o vídeo resultante correspondeu ao
+  pedido;
+- mas ele chamou a ferramenta **sem `sourceAssetId`**. Não houve
+  image-to-video: houve um **text-to-video** cujo prompt descrevia a imagem;
+- por isso não há linhagem — não havia o que registrar.
+
+**O mecanismo i2v não está quebrado.** Ele existe (`og.generate_video` aceita
+`sourceAssetId`, valida projeto e `kind`, e a facade grava
+`derivedFromAssetId`), está coberto pela suíte determinística, e há um Asset
+mais antigo no banco que o comprova:
+
+```
+video  2026-09-03  asset_mtlstp28_bc1537a3
+       derivedFrom: asset_mtlsae20_daf09b6e  (kind=image, smoke-final.png)
+```
+
+O que **não** foi exercitado neste Quality Gate foi o caminho i2v. Fica em
+aberto, e é a primeira coisa a repetir no próximo gate:
+
+> **PENDENTE:** provar que *"anime essa imagem"* leva o agente a passar
+> `sourceAssetId`, e que o vídeo nasce com `derivedFromAssetId` apontando para o
+> Asset da imagem. Vale investigar se a descrição da ferramenta orienta o modelo
+> a isso com clareza suficiente, e se o único workflow de vídeo registrado
+> (`minimax_h3_t2v`) precisa de um irmão explícito de i2v no registry.
+
+Nenhum dado foi alterado nesta verificação.
+
+### Incidente de operação — não é bug do Agent
+
+No início do gate o Agent respondeu *"O assistente de criação está
+temporariamente indisponível."*
+
+**Causa:** o Hermes dedicado não estava rodando na porta 8788. Depois de subir o
+runtime dedicado (`GET /api/health` → 200, Hermes 0.20.3), o Agent voltou a
+funcionar.
+
+Isto é o **fail-closed funcionando como projetado** (seção 4): sem runtime, a
+resposta é um erro seguro com uma frase de produto — nunca um eco silencioso.
+
+> **Desenvolvimento local precisa de três processos.** `ComfyUI :8188`,
+> `Hermes dedicado :8788`, `Next :3100`. Ver a seção 12 e
+> `integrations/hermes/README.md`, que é o procedimento oficial de subida.
+
+### Nota operacional — `.next`
+
+Houve também um `ENOENT: .next/server/app/studio/[[...slug]]/page.js`, resolvido
+parando o dev server, removendo `.next` e reiniciando.
+
+Não é problema de arquitetura. É a mesma armadilha já registrada na seção 12:
+**não rode `npm run build` com o `next dev` vivo usando o mesmo `.next`** — o
+build sobrescreve os chunks do dev.
+
+---
+
+## 21 · O que está aberto, e o próximo passo
+
+### O estado, em quatro linhas
+
+```
+Passos 1–10 CORE ...................... ✅
+Passo 11 · Document Ingestion ......... ✅
+Thread Continuity ..................... ✅
+Quality Gate · Core Audiovisual E2E ... ✅   (com a ressalva da seção 20)
+
+10.6 · Operational Hardening .......... ⏸ backlog
+```
+
+### NEXT — PASSO 12: PRODUCTION PLANNING
+
+O Passo 11 entregou a primeira metade do exemplo-guia do produto: o material
+entra e o agente o lê. O Passo 12 é a segunda metade — o que se FAZ com ele.
+
+```
+Material / ProjectDocument
+  → proposta narrativa
+  → roteiro estruturado
+  → cenas
+  → preparação para geração audiovisual
+```
+
+**Ele ainda não foi começado.** Nada dele existe no código.
+
+Dois pontos de partida que já estão no lugar e não precisam ser inventados:
+
+- o domínio **já tem `scenes`** (migração 1), com número, título, descrição,
+  duração, status e imagem — falta a ponte da conversa até ele;
+- o vocabulário de aprovação **já existe** em `lib/approval.js`.
+
+E uma coisa a resolver antes de confiar no fim do pipeline: a ressalva de
+`derivedFromAssetId` da seção 20. Um plano de produção que gere cenas encadeadas
+depende de a linhagem entre Assets ser real, e o Quality Gate mostrou que o
+caminho i2v **não** foi exercitado pelo agente.
 
 ### As frentes que continuam abertas
 
@@ -1537,10 +2164,11 @@ frente exige — a ordem é decisão de produto.
 
 | Frente | O que ela exige, concretamente |
 | --- | --- |
-| **Passo 11 — ingestão de PDF/documentos** | destrava "transforme este PDF num documentário", que é o exemplo-guia do produto. Não há upload, parsing nem extração hoje (limitação F) |
+| **Passo 12 — Production Planning** | **o próximo.** Documento → proposta narrativa → roteiro → cenas. O domínio já tem `scenes`; falta a ponte da conversa até ele |
+| **i2v pelo agente, com linhagem** | o Quality Gate mostrou que "anime essa imagem" NÃO passou `sourceAssetId`. Ver a ressalva da seção 20 |
 | **10.6 — Operational Hardening** | fila própria, backpressure, concorrência controlada, cancelamento seletivo, leases/multi-worker (limitação J) |
-| **Produção Script → Scene → Shot** | o domínio já tem Scene; falta a ponte da conversa até uma estrutura de roteiro |
-| **Conhecimento / RAG** | limitação G |
+| **OCR / PDF escaneado** | fora do Passo 11 por decisão. Hoje um PDF sem texto é recusado com honestidade |
+| **Conhecimento / RAG** | limitação G. Os chunks do Passo 11 não são isso |
 | **Memória de projeto, personagens, continuidade** | limitação H — é o que faz um personagem parecer o mesmo entre cenas |
 | **Approvals** | o vocabulário já existe em `lib/approval.js`; falta o fluxo |
 | **Montagem final** | juntar os planos aprovados numa peça só |
@@ -1556,7 +2184,7 @@ Duas coisas que não são frentes, mas continuam pendentes e são baratas:
 
 ---
 
-## 19 · NON-NEGOTIABLE ARCHITECTURE RULES
+## 22 · NON-NEGOTIABLE ARCHITECTURE RULES
 
 Cada regra existe porque a alternativa já causou, ou causaria, um defeito
 concreto. Não são preferência de estilo.
@@ -1629,14 +2257,35 @@ concreto. Não são preferência de estilo.
     mensagem": `assistantMessageId` se existir, senão `seq(userMessageId) + 1`
     **conferindo papel e thread**, senão não anexa. Uma fala nova no meio, ou uma
     conversa nova, não podem roubar o resultado.
-27. **O que é escrito uma vez é conflito, não sobrescrita.** `providerJobId` e
+27. **A AgentThread é durável; a sessão do runtime é andaime.** Uma conexão
+    WebSocket não é a identidade da conversa. O runtime recicla a sessão dele
+    sozinho — o turno seguinte a restabelece pelo id DURÁVEL, e o usuário não
+    precisa criar conversa nova nem saber que existe um runtime. A retomada
+    acontece no máximo uma vez por turno, só enquanto nada foi dito, e nunca
+    num turno cancelado. Ver seção 19.
+28. **Ignorância de terceiro não vira certeza nossa.** Um código de erro de um
+    serviço externo só identifica a falha quando ele é inequívoco naquele
+    protocolo. `4001` do runtime não é — ele serve a mais de vinte condições —,
+    e por isso a detecção de "sessão reciclada" é conjuntiva. Quando a
+    identificação depende de texto de terceiro, o modo de falhar tem de ser
+    escolhido: aqui, uma frase reescrita faz a retomada deixar de acontecer,
+    nunca acontecer por engano.
+29. **Documento não é Asset.** Asset é mídia que a produção PRODUZIU; documento
+    é material que ENTRA. E o documento pertence ao **Project**, enquanto o
+    anexo pertence ao **turno** — são duas perguntas, com respostas diferentes,
+    e é essa separação que faz "este PDF" ter referente sem heurística.
+30. **O nome de arquivo do usuário nunca participa de um caminho.** Nem
+    sanitizado. O arquivo se chama `source.<ext>` sob identificadores nossos, e
+    o nome sobrevive apenas como rótulo. Sanitizar é uma corrida que se perde
+    devagar; não participar da decisão é a única versão sem caso de borda.
+31. **O que é escrito uma vez é conflito, não sobrescrita.** `providerJobId` e
     `assistantMessageId` aceitam o **mesmo fato** repetido (replay é idempotente)
     e recusam um fato diferente. É o que torna reconciliação e acompanhamento
     seguros rodando juntos.
 
 ---
 
-## 20 · Mapa de arquivos
+## 23 · Mapa de arquivos
 
 Só o que ajuda a navegar. Não é catálogo do repositório.
 
@@ -1661,6 +2310,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/agent/events.js` | o vocabulário público de eventos, e `publicAgentEvent` — a redução final antes do navegador |
 | `lib/server/agent/threads.js` | AgentThread / AgentMessage / vínculo de mídia |
 | `lib/server/agent/index.js` | barril de entrada |
+| `lib/server/agent/attachments.js` | o aviso privado ao modelo sobre os documentos do turno — é PRODUTO, não integração |
 
 ### Runtime adapters
 
@@ -1696,6 +2346,8 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/agent/tools/handlers/generateImage.js` | `og.generate_image` |
 | `lib/server/agent/tools/handlers/generateVideo.js` | `og.generate_video` |
 | `lib/server/agent/tools/handlers/getJob.js` | `og.get_job` |
+| `lib/server/agent/tools/handlers/listDocuments.js` | `project.list_documents` |
+| `lib/server/agent/tools/handlers/readDocument.js` | `project.read_document` |
 | `lib/server/agent/tools/jobWatch.js` | **o acompanhamento**: single-flight, laço, teto, ciclo de vida, associação |
 
 ### Geração
@@ -1726,7 +2378,20 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/domain/scenes.js` | Scene |
 | `lib/server/domain/assets.js` | Asset e linhagem |
 | `lib/server/domain/backfill.js` | registro de mídia já em disco (idempotente) |
+| `lib/server/domain/documentTypes.js` | **o vocabulário dos tipos de documento** — zero imports, é domínio |
+| `lib/server/domain/documents.js` | **o documento do Project**: criação transacional, leitura paginada, fronteira de projeto |
 | `lib/server/domain/index.js` | barril — **note o que ele deliberadamente não exporta** |
+
+### Ingestão de documentos (Passo 11)
+
+| Caminho | Papel |
+| --- | --- |
+| `lib/server/documents/config.js` | limites de operador |
+| `lib/server/documents/storage.js` | os bytes originais, privados — e o nome do usuário que NUNCA vira caminho |
+| `lib/server/documents/extract.js` | PDF/TXT → texto normalizado em pedaços. **O único arquivo que carrega o parser**, e por import dinâmico |
+| `lib/server/documents/ingest.js` | a orquestração: valida, fareja, grava, extrai, persiste |
+| `lib/server/documents/httpApi.js` | a decisão da API, sem HTTP |
+| `app/api/documents/route.js` | a rota fina: lê o multipart e delega |
 
 ### ComfyUI
 
@@ -1758,6 +2423,14 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `tests/generation-ledger-lifecycle.test.mjs` | o livro-razão no ciclo real (10.3) — 27 testes |
 | `tests/generation-reconcile.test.mjs` | a recuperação de arranque (10.4 + 10.5) — 44 testes |
 | `tests/helpers/runtimeFalso.mjs` | o runtime falso do adaptador |
+| `tests/domain-documents.test.mjs` | o domínio do documento (Passo 11) — 25 testes |
+| `tests/document-ingestion.test.mjs` | a ingestão real, com PDFs de verdade — 22 testes |
+| `tests/agent-document-tools.test.mjs` | as ferramentas de documento — 17 testes |
+| `tests/agent-document-attachment.test.mjs` | o anexo do turno — 13 testes |
+| `tests/agent-document-reading.test.mjs` | o caminho inteiro, sem runtime real — 6 testes |
+| `tests/documents-boundary.test.mjs` | as fronteiras da ingestão — 9 testes |
+| `tests/agent-thread-continuity.test.mjs` | a continuidade da thread (seção 19) — 12 testes |
+| `tests/fixtures/documents/` | quatro PDFs mínimos versionados + o `gerar.mjs` que os produz |
 | `tests/smoke-hermes-real.mjs` | smoke real com Hermes — **fora** da suíte |
 | `tests/smoke-i2v-real.mjs` | smoke real de i2v — **fora** da suíte |
 
@@ -1773,7 +2446,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 ---
 
-## 21 · Convenções que valem a pena preservar
+## 24 · Convenções que valem a pena preservar
 
 - **Injeção de dependência no estilo da casa:** último parâmetro com default
   (`db = database()`, `root = RUNTIME_ROOT`, `deps = {}`). É o que torna tudo

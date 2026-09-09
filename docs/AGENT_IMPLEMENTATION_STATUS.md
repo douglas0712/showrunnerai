@@ -8,7 +8,7 @@ Ele não depende de `/tmp`, de scratchpad, de histórico de conversa nem da
 memória de nenhuma sessão.
 
 **Atualizado em:** 9 de setembro de 2026
-**HEAD funcional documentado:** `cb7c5e0f26a6216185b53533a78c1e9afe9b65f9`
+**HEAD funcional documentado:** `510186636e08fe77e2b93d784ee48ba644aad84b`
 
 > **Regra de precedência.** Se este documento divergir do código ou do Git, **o
 > código e o Git são a fonte de verdade**. Verifique antes de confiar. Foi
@@ -22,18 +22,19 @@ memória de nenhuma sessão.
 
 1. Leia este documento inteiro. Ele tem tudo o que você precisa para começar.
 2. `git status --short` — esperado: **vazio** (árvore limpa).
-3. `git log --oneline -5` — esperado: `cb7c5e0` no topo do trabalho funcional.
-4. `npm test` — esperado: **1128 testes, 1128 passando, 0 falhando** (~3 min).
+3. `git log --oneline -5` — esperado: `5101866` no topo do trabalho funcional.
+4. `npm test` — esperado: **1208 testes, 1208 passando, 0 falhando** (~3 min).
 5. `npm run build` — esperado: compila limpo, 18 páginas estáticas.
-6. **Não refaça os Passos 1–11.** Eles estão prontos, testados e commitados. O
+6. **Não refaça os Passos 1–12.** Eles estão prontos, testados e commitados. O
    **núcleo** do Passo 10 (10.0 a 10.5) está fechado; **10.6 é backlog** e não
    bloqueia nada — ver seção 17. O **Passo 11** (ingestão de documentos) está
-   fechado — ver seção 18.
+   fechado — ver seção 18. O **Passo 12** (planejamento de produção) está
+   fechado — ver seção 22.
 7. **O Quality Gate audiovisual foi executado à mão, no produto real, e passou
    inteiro** — inclusive a linhagem imagem → vídeo, verificada no banco e no
    grafo submetido ao executor: seção 20.
-8. **O próximo passo é o PASSO 12 — PRODUCTION PLANNING** (seção 22). Ele ainda
-   não foi começado.
+8. **O próximo passo é o PASSO 13 — PRODUCTION EXECUTION** (seção 23). Ele ainda
+   não foi começado, e a arquitetura dele ainda não foi decidida.
 9. Preserve as **NON-NEGOTIABLE ARCHITECTURE RULES**. Elas não são estilo: cada
    uma existe porque a alternativa já causou, ou causaria, um defeito concreto.
 
@@ -50,9 +51,9 @@ ruído do `node:sqlite` no Node 24, não uma falha. Não suprima.
 | Nome do pacote | `showrunner-studio` (ver `package.json`) |
 | Branch | `main` |
 | Remote | `origin` → `https://github.com/douglas0712/showrunnerai.git` |
-| HEAD funcional | `cb7c5e0f26a6216185b53533a78c1e9afe9b65f9` |
+| HEAD funcional | `510186636e08fe77e2b93d784ee48ba644aad84b` |
 | Working tree | limpa |
-| Testes | 1128 / 1128 passando, 0 falhas |
+| Testes | 1208 / 1208 passando, 0 falhas |
 | Build | limpo (`✓ Compiled successfully`, 18/18 páginas) |
 | Node | v24.x (usa `node:sqlite`, experimental) |
 | Next | 15.5.15 · React 19.2.8 |
@@ -64,6 +65,8 @@ ruído do `node:sqlite` no Node 24, não uma falha. Não suprima.
 
 | Commit | O que entrou |
 | --- | --- |
+| `5101866` | **PASSO 12** — planejamento de produção durável: plano, roteiro e cenas viraram estado do Project (migração 9) |
+| `6ed922f` | handoff da linhagem imagem → vídeo verificada |
 | `cb7c5e0` | **I2V com linhagem** — "anime essa imagem" passou a virar image-to-video de verdade, com `derivedFromAssetId` real |
 | `2c8a227` | handoff do Passo 11, da continuidade de thread e do Quality Gate |
 | `b2ce6b1` | **PASSO 11** — ingestão de documentos (migração 8) **e** a continuidade da mesma AgentThread quando o runtime recicla a sessão dele |
@@ -392,13 +395,25 @@ E para "oi": *"Oi! Sou o Showrunner. O que vamos criar hoje?"* — nunca
 ### Nomes canônicos (os únicos que o registry conhece)
 
 ```
-og.generate_image        o que a produção FAZ
+og.generate_image             o que a produção FAZ
 og.generate_video
 og.get_job
 
-project.list_documents   o que o projeto TEM
+project.list_documents        o que o projeto TEM
 project.read_document
+
+project.get_production_plan   o que a produção VAI SER
+project.save_production_plan
+project.get_script
+project.save_script
+project.list_scenes
+project.get_scene
+project.replace_scenes
+project.update_scene
 ```
+
+**Treze ferramentas.** Eram cinco antes do Passo 12; as oito de planejamento
+entraram nele — seção 22.
 
 Definidos em `lib/server/agent/tools/handlers/`.
 
@@ -406,6 +421,10 @@ O prefixo diz de quem é a coisa. Uma ferramenta `project.*` opera sobre o
 Project inteiro, atravessa conversas, e a autoridade dela é sempre o
 `projectId` do ToolContext. As duas de documento entraram no Passo 11 —
 seção 18.
+
+As oito de planejamento seguem a mesma regra, e acrescentam uma: **uma cena é
+endereçada pela POSIÇÃO (`ordinal`), nunca por um identificador**. O `id` de uma
+cena não sai do servidor. Ver seção 22.
 
 ### `og.get_job` deixou de ser o motor da autonomia
 
@@ -431,11 +450,19 @@ garantida pelo servidor, não por obediência a prompt.
 ### Aliases — detalhe EXCLUSIVO da integração Hermes
 
 ```
-og_generate_image       →  og.generate_image
-og_generate_video       →  og.generate_video
-og_get_job              →  og.get_job
-project_list_documents  →  project.list_documents
-project_read_document   →  project.read_document
+og_generate_image             →  og.generate_image
+og_generate_video             →  og.generate_video
+og_get_job                    →  og.get_job
+project_list_documents        →  project.list_documents
+project_read_document         →  project.read_document
+project_get_production_plan   →  project.get_production_plan
+project_save_production_plan  →  project.save_production_plan
+project_get_script            →  project.get_script
+project_save_script           →  project.save_script
+project_list_scenes           →  project.list_scenes
+project_get_scene             →  project.get_scene
+project_replace_scenes        →  project.replace_scenes
+project_update_scene          →  project.update_scene
 ```
 
 Em `lib/server/agent/hermes/aliases.js`. Existem porque o provider por trás do
@@ -464,7 +491,8 @@ em qual projeto gerar seria um agente sem fronteira.
 ### Defesa em profundidade da chamada de ferramenta
 
 1. `HERMES_TUI_TOOLSETS=showrunner` no processo do runtime;
-2. o plugin registra **três** nomes e mais nenhum (`plugin.yaml`);
+2. o plugin registra **treze** nomes e mais nenhum (`plugin.yaml`), e há teste
+   que falha se o manifesto e a tabela de aliases discordarem;
 3. `toCanonicalToolName` recusa o que não está na tabela de aliases;
 4. o bridge escuta num socket Unix `0600` — sem porta, sem token, autorização
    pelo sistema de arquivos;
@@ -477,7 +505,7 @@ em qual projeto gerar seria um agente sem fronteira.
 SQLite via `node:sqlite` (zero dependências novas), em `runtime/showrunner.db`.
 Migrações versionadas por `PRAGMA user_version`, em `lib/server/domain/db.js`.
 
-**`ESQUEMA_ATUAL = 8`** (oito migrações aplicadas).
+**`ESQUEMA_ATUAL = 9`** (nove migrações aplicadas).
 
 | # | Migração | Entidade |
 | --- | --- | --- |
@@ -488,6 +516,7 @@ Migrações versionadas por `PRAGMA user_version`, em `lib/server/domain/db.js`.
 | 6 | `runtime_sessions.bridgeSessionId` | o segundo nome da mesma sessão |
 | 7 | `generation_jobs` | **o livro-razão durável de gerações** (Passo 10.2) |
 | 8 | `project_documents`, `document_chunks`, `agent_message_documents` | **o material de referência do Project** (Passo 11) |
+| 9 | `production_plans`, `production_plan_sources`, `production_scripts`, `production_scenes` | **o planejamento da produção** (Passo 12) |
 
 Tabelas `STRICT`, chaves estrangeiras ligadas, `CHECK` gerado a partir dos
 vocabulários que já existem em `lib/storyboard.js` e `lib/approval.js` — não há
@@ -571,6 +600,73 @@ tem dois, que é quando ele mais precisa ser entendido.
 **O que deliberadamente NÃO está aqui:** caminho de arquivo (não há coluna; o
 caminho é derivado dos ids — ver seção 18), estado de ingestão (ela é síncrona:
 ou o documento existe pronto, ou não existe), e qualquer coisa de vetor.
+
+### `production_plans` · `production_plan_sources` · `production_scripts` · `production_scenes` (Passo 12)
+
+O plano audiovisual de um Project: o que a produção vai ser, o roteiro dela, e
+as cenas em que ele se divide. Migração **9**, aditiva.
+
+```
+Project
+  └─ production_plans          o que a produção VAI SER       (1 por Project)
+       └─ production_plan_sources   de qual material ela saiu (referências)
+  └─ production_scripts        o roteiro                       (1 por Project)
+       └─ production_scenes    as cenas, em ordem
+```
+
+| Tabela | Campos que importam |
+| --- | --- |
+| `production_plans` | `id` PK · `projectId` **UNIQUE** (CASCADE) · `title` · `logline` · `synopsis` · `format` · `targetDurationSeconds` (CHECK > 0) · `aspectRatio` · `genre` · `tone` · `audience` · `language` · `status` (CHECK) · `createdAt` · `updatedAt` |
+| `production_plan_sources` | `PRIMARY KEY (planId, documentId)` — a deduplicação sai de graça · `seq` |
+| `production_scripts` | `id` PK · `projectId` **UNIQUE** (CASCADE) · `title` · `summary` · `fullText` (CHECK length > 0) · `status` (CHECK) · timestamps |
+| `production_scenes` | `id` PK · `scriptId` (CASCADE) · `ordinal` (CHECK ≥ 1) · `title` · `purpose` · `durationSeconds` (CHECK > 0) · `narration` · `visualDescription` · `status` (CHECK) · timestamps · **`UNIQUE (scriptId, ordinal)`** |
+
+**`UNIQUE(projectId)` é a regra inteira:** um Project tem no máximo um plano e um
+roteiro, e gravar de novo **substitui preservando o `id`**. É o que torna "salve
+o plano" idempotente sem que ninguém precise conferir se já havia um. Não há
+versionamento, e isso é decisão: um histórico de roteiros só vale a pena quando
+existe uma forma de escolher entre eles.
+
+**A cena NÃO guarda `projectId`.** Ela pertence a um roteiro, e o roteiro
+pertence a um projeto — a coluna extra seria uma segunda resposta para a mesma
+pergunta, e duas respostas podem discordar. É o mesmo desenho de
+`document_chunks`, que também não repete o dono do documento.
+
+**O status usa o vocabulário que já existia.** `PRODUCTION_STATUS` é
+`{ DRAFT: 'rascunho', APPROVED: 'aprovado' }`, derivado de `SCENE_STATUS` em
+`lib/storyboard.js` — **zero palavras novas**. Inventar `draft`/`approved` criaria
+um segundo idioma para a mesma coisa, e a tela teria de traduzir entre os dois.
+São só duas porque o planejamento só tem duas respostas hoje; `pendente`,
+`revisão` e `vídeo gerado` pertencem ao ciclo de vida de uma MÍDIA, e não há
+mídia aqui.
+
+**O que deliberadamente NÃO está aqui:** o texto do documento (o plano guarda a
+REFERÊNCIA — ver seção 22), prompt de modelo (descrição visual não é prompt de
+ComfyUI, e escrever um agora congelaria o gerador de hoje dentro do plano),
+Asset, job, workflow, e versão.
+
+### A tabela `scenes` da migração 1 NÃO foi evoluída
+
+Ela continua exatamente como era, e isso é uma decisão registrada, não um
+esquecimento.
+
+`scenes` é o espelho, no servidor, do storyboard que a tela monta em
+`lib/storyboard.js` e guarda no `localStorage`: `number`, `modelId`,
+`revisionNote`, `image`, `videoId`. Ela responde *"qual mídia cada quadro do
+storyboard já tem"*. Ela também **não tem escritor em produção**: a varredura do
+repositório encontra `createSceneRecord` apenas nos testes.
+
+`production_scenes` responde a outra pergunta: *"o que esta parte do filme quer
+dizer, o que se ouve e o que se vê"*. Encaixar isso em `scenes` exigiria quatro
+colunas novas, um índice único que aquela tabela **nunca teve** (ela tolera
+número repetido de propósito — `renumberScenes` conta com isso) e a troca do
+vocabulário de status. Seria mudar o significado de uma tabela publicada para
+caber num conceito novo.
+
+Então as duas convivem, com nomes que dizem a que vieram. **Nenhuma migração
+destrutiva, nenhum dado antigo tocado.** Há teste que confere as 13 colunas
+originais de `scenes` e falha se alguém as alterar
+(`domain-production.test.mjs`, `N-bis`).
 
 ### Project: o mesmo id no frontend e no backend
 
@@ -794,7 +890,7 @@ Nomes de arquivos de modelo exigidos estão nos descriptors. **Nenhuma credencia
 
 ### Testes determinísticos — `npm test`
 
-**1128 testes, 1128 passando, 0 falhando.** 67 arquivos `tests/*.test.mjs`, com
+**1208 testes, 1208 passando, 0 falhando.** 70 arquivos `tests/*.test.mjs`, com
 `node:test`, sem dependências de teste. Sem rede, sem GPU, sem runtime externo, sem
 credencial. Vários são regressões de falhas reais e trazem a causa documentada
 no cabeçalho: se um quebrar, o refactor está errado, não o teste.
@@ -825,6 +921,9 @@ Categorias notáveis:
 | `agent-document-reading.test.mjs` | o caminho inteiro, sem runtime real — 6 testes |
 | `documents-boundary.test.mjs` | o parser fora do bundle do cliente, e as camadas — 9 testes |
 | `agent-thread-continuity.test.mjs` | a conversa sobrevive à reciclagem da sessão (seção 19) — 12 testes |
+| `domain-production.test.mjs` | o planejamento no domínio e a migração 8→9 (Passo 12) — 42 testes |
+| `agent-production-tools.test.mjs` | as oito ferramentas de planejamento e a fronteira delas — 33 testes |
+| `agent-production-planning.test.mjs` | o caminho inteiro, multi-turno, sem runtime real — 5 testes |
 
 O runtime falso vive em `tests/helpers/runtimeFalso.mjs`. Ele ganhou, no Passo
 11, um ciclo de vida de sessões (`criarSessoesFalsas`) que imita o
@@ -885,6 +984,8 @@ Scripts: `tests/smoke-hermes-real.mjs` e `tests/smoke-i2v-real.mjs`.
 | **a conversa sobrevive à reciclagem da sessão do runtime** | seção 19: 4 turnos na MESMA thread com 25 s de pausa; o runtime reciclou 4 vezes, o Showrunner reabriu 3, uma sessão durável só, zero `runtime_unavailable` |
 | **Quality Gate audiovisual, à mão, no navegador** | seção 20: identidade → T2I real → "anime essa imagem" → **I2V real** → vídeo → reload preserva mídia → nova conversa preserva a anterior |
 | **"anime essa imagem" produz LINHAGEM real** | seção 20, verificado no banco e no `/history` do executor: `B.derivedFromAssetId = A`, e o grafo submetido traz `LoadImage` ligado ao `first_frame`. A execução anterior submetia zero `LoadImage` e gravava linhagem nula |
+| **PDF real vira PLANO, ROTEIRO e CENAS persistidos** | Passo 12, seção 22: o mesmo `Prometeu_O_Fogo_da_Humanidade.pdf` (6 páginas, 5.568 caracteres) → plano de 120 s, roteiro de 1.577 caracteres, **7 cenas** somando 120 s. `generation_jobs` e `assets` **inalterados** |
+| **"deixe a cena 2 mais dramática" muda a cena 2, e só ela** | Passo 12, seção 22: no banco, apenas a cena 2 tem `updatedAt ≠ createdAt`; as outras seis continuam com os dois carimbos idênticos aos da criação |
 | **o gancho de arranque não quebra o bundle** | o mesmo smoke encontrou `UnhandledSchemeError: node:child_process` (`ffmpeg ← provider ← facade ← reconcile`) causando **500 em toda rota**, que nem `npm test` nem `npm run build` pegavam. Consertado com URL montada em runtime + `webpackIgnore` |
 | `/queue` e `filename_prefix` do executor real | Passo 10.5, leitura apenas: `/queue` responde `{queue_running, queue_pending}` pelo cliente do projeto, e uma execução real do histórico traz `filename_prefix: image/showrunner/<jobId>` no nó de gravação do descriptor (`158`) |
 
@@ -1118,6 +1219,15 @@ Tirar o chip antes de enviar remove o **anexo do turno**; o documento continua n
 Project. Não há coletor de lixo, e não deveria haver um sem antes decidir o que
 fazer com um documento que outra conversa já pode ter citado.
 
+### F-quater. ~~O plano de produção só existia no chat~~ — RESOLVIDO no Passo 12
+
+O agente propunha um documentário e a proposta morria com o turno. O pedido
+seguinte — "mude a cena 4" — obrigava o modelo a reconstruir o filme de memória,
+e ele reconstruía OUTRO filme.
+
+Resolvido em `5101866`. Plano, roteiro e cenas são estado do Project. Ver
+seção 22.
+
 ### G. RAG não existe
 
 Sem base de conhecimento, sem embeddings, sem vector DB, sem recuperação por
@@ -1125,10 +1235,37 @@ semelhança. **Os chunks do Passo 11 não são isso**: eles são paginação
 determinística, para o agente conseguir percorrer um documento inteiro. Ver
 seção 18.
 
+### G-bis. O planejamento de produção tem limites conhecidos
+
+Todos são decisão, não pendência esquecida. Nenhum deles bloqueia o produto.
+
+- **Sem versionamento** de plano, roteiro ou cenas: gravar de novo substitui.
+  Sem takes, sem histórico de revisões. Um histórico só vale a pena quando
+  existe uma forma de escolher entre as versões, e não existe.
+- **Sem `reorder_scene` e sem `delete_scene`.** Mover a cena 5 para a 2, ou
+  apagar uma cena, exige `project.replace_scenes`. Renumerar é reordenar o
+  filme, e apagar reabre o buraco no `1..n` — nenhuma das duas é edição
+  pontual, e tratá-las como tal quebraria a invariante que torna "a cena 4" um
+  endereço.
+- **Approval não está integrado.** Só existe a BASE: a coluna `status`, com
+  `rascunho` e `aprovado`. **Nada escreve `aprovado`** nesta etapa, e `status`
+  não é campo que o modelo possa escrever. Ver a seção 22.
+- **Sem UI de planejamento.** Plano, roteiro e cenas só existem pela conversa.
+- **Sem ligação Scene → Asset.** Nada conecta uma cena à mídia dela; é o
+  Passo 13.
+- **Chamadas sucessivas de `update_scene` podem afastar a soma do alvo.** A
+  tolerância de ±5 s vale na CRIAÇÃO do conjunto; numa edição pontual ela não é
+  imposta, de propósito — ver seção 22. O único freio é o agente avisar, e ele é
+  informado da nova soma para poder fazê-lo.
+- **A `scenes` legada continua no esquema** e no barril do domínio, sem
+  escritores. Não foi removida: seria destrutivo, e ela ainda é coberta por
+  testes.
+
 ### H. Memória de projeto, personagens e continuidade não existem
 
 Nada mantém a aparência de um personagem entre cenas, nem lembra decisões de
-direção entre conversas.
+direção entre conversas. **O Passo 12 não resolve isto**: ele guarda o que cada
+cena É, não o que faz um personagem parecer o mesmo entre duas delas.
 
 ### I. WhatsApp e outros canais não existem
 
@@ -1227,6 +1364,7 @@ comportamento esperado, não escondido.
 | **—** — Thread Continuity (a conversa sobrevive à reciclagem da sessão) | ✅ | `b2ce6b1` |
 | **—** — Quality Gate Core Audiovisual E2E (manual, no produto real) | ✅ | seção 20 |
 | **—** — Referência natural a Asset → I2V com linhagem | ✅ | `cb7c5e0` |
+| **12** — Production Planning (plano, roteiro e cenas persistentes) | ✅ | `5101866` |
 
 ---
 
@@ -2254,9 +2392,345 @@ superfície pública.
 
 ---
 
-## 22 · O que está aberto, e o próximo passo
+## 22 · PASSO 12 — PRODUCTION PLANNING ✅
 
-### O estado, em quatro linhas
+**Concluído em `5101866`.** Implementado, testado, e validado com execução real
+contra o Hermes v0.20.3, o PDF real do Prometeu e o produto de pé.
+
+O Passo 11 entregou a primeira metade do exemplo-guia do produto: o material
+entra e o agente o lê. O Passo 12 é a segunda metade — o que se FAZ com ele.
+
+```
+Material / ProjectDocument
+  → proposta narrativa      (Production Plan)
+  → roteiro estruturado     (Production Script)
+  → cenas PERSISTENTES      (Production Scenes)
+```
+
+> **O Passo 12 NÃO gera mídia.** Nenhuma ferramenta dele alcança `generation/`,
+> e o passo termina na cena DESCRITA. Ver "Prova de zero mídia", abaixo.
+
+### Por que isto precisava existir
+
+Porque o pedido seguinte é *"mude a cena 4"*.
+
+Antes deste passo, o agente propunha um documentário e a proposta morria com o
+turno. Para atender ao pedido seguinte, a única coisa que ele podia fazer era
+reconstruir o filme inteiro pela memória da conversa — e ele reconstruía OUTRO
+filme: parecido o bastante para ninguém notar na hora, diferente o bastante para
+estragar a produção.
+
+> **O estado do Project é a autoridade. A conversa é o volante.**
+
+### O domínio
+
+Migração **9**, aditiva. As quatro tabelas, os campos e os invariantes de banco
+estão na seção 7, junto com a explicação de por que a `scenes` da migração 1
+**não foi evoluída**.
+
+A cadeia é obrigatória, e ela é a regra:
+
+```
+Project → ProductionPlan → ProductionScript → Scenes
+```
+
+Não há roteiro sem plano, e não há cena sem roteiro. Não é burocracia: é o que
+impede um conjunto de cenas de existir sem nada contra o que conferir a duração,
+e um roteiro de existir sem que ninguém tenha decidido que filme ele é. As duas
+recusas dizem o que falta.
+
+`lib/server/domain/production.js` é a única porta de escrita.
+
+### Invariantes, e onde cada um mora
+
+| Invariante | Garantido por |
+| --- | --- |
+| projeto obrigatório, e nenhum projeto nasce por causa de um plano | repositório (`getProject`) + FK |
+| um plano e um roteiro por Project; regravar substitui e **preserva o `id`** | `UNIQUE(projectId)` |
+| plano antes do roteiro, roteiro antes das cenas | repositório, com mensagem que diz o que falta |
+| ordinais são **exatamente 1..n** — sem repetido, sem buraco | repositório **e** `UNIQUE(scriptId, ordinal)` |
+| `durationSeconds > 0`, inteiro | repositório **e** `CHECK` |
+| soma das cenas dentro de ±5 s do alvo, **na criação** | repositório |
+| `replace_scenes` é transacional | `BEGIN IMMEDIATE` + `ROLLBACK` |
+| ids são server-generated | `newId('plan' | 'script' | 'scene')` |
+| cross-project bloqueado | **por construção** — ver abaixo |
+| `DELETE` de Project leva plano, fontes, roteiro e cenas | `CASCADE` |
+
+**Campos que NÃO entraram:** `location`, `characters`, `transition`. Não havia
+necessidade demonstrada, e uma Scene gigante é uma Scene que ninguém edita.
+
+### Cross-project é impronunciável, não recusado
+
+Uma cena é endereçada por **`projectId` (do ToolContext) + `ordinal`**. Nunca por
+`id`. O `id` de uma cena **não sai do servidor**, como o `jobId` de uma geração.
+
+Isso é mais forte do que conferir um `sceneId`: não existe identificador para o
+modelo carregar de um projeto a outro, confundir ou inventar. Não há um número
+que signifique "a cena de outro projeto" — pedir a cena 2 no projeto errado
+devolve a cena 2 DAQUELE projeto, ou nada.
+
+O `ordinal` é também o número que a pessoa fala: *"a cena 4"*. A tradução de
+linguagem para argumento é 1:1, sem invenção.
+
+### Fontes: referência, nunca cópia
+
+`production_plan_sources` guarda **`documentId`**, e mais nada. O texto do PDF já
+está em `document_chunks`; copiá-lo para o plano criaria uma segunda cópia que
+envelhece — e que continuaria afirmando coisas sobre um documento depois de ele
+mudar.
+
+Cada `documentId` é conferido contra o PROJETO antes de qualquer escrita, com a
+mesma implementação e a mesma frase das ferramentas de documento: *"este projeto
+não tem um documento com esse identificador"* — a mesma resposta para "não
+existe" e para "existe, mas é de outro projeto".
+
+É isto que torna a proposta rastreável: dá para perguntar *"de onde veio este
+plano?"* e ter uma resposta que não é a memória da conversa. Há teste que
+confere que o plano gravado **não contém** nenhum fato do documento.
+
+### O roteiro é texto; a estrutura são as cenas
+
+`fullText` é o roteiro corrido — a peça que uma PESSOA lê, com a voz que ela tem.
+A estrutura que a máquina manipula individualmente são as cenas, que são linhas
+de verdade em outra tabela.
+
+Guardar as duas coisas na coluna faria "mude a cena 4" virar edição de string,
+com o modelo reescrevendo o texto inteiro para mudar dez segundos. Guardar só as
+cenas jogaria fora o roteiro que o usuário quer ler.
+
+**Reescrever o roteiro NÃO apaga as cenas.** O `id` do roteiro não muda numa
+regravação, então nada cascateia: corrigir uma frase do texto não pode demolir o
+plano de cenas.
+
+### Duração: ±5 s na criação, e nunca numa ordem
+
+Na criação do conjunto (`replace_scenes`), a soma das cenas precisa ficar dentro
+de **±5 segundos** de `targetDurationSeconds`. Um plano de "dois minutos" cujas
+cenas somam quarenta segundos não é uma aproximação: é outro filme. Cinco
+segundos, e não uma porcentagem, porque a conta precisa ser óbvia para quem
+escreve o plano — com cenas em segundos inteiros, acertar 120 ± 5 é aritmética.
+
+A recusa é **acionável**: ela diz a soma, o alvo e a tolerância, para o agente
+corrigir de primeira em vez de adivinhar.
+
+**Em `update_scene` a tolerância NÃO é imposta**, e isto é a decisão de produto
+mais importante deste passo:
+
+> *"Reduza a cena 5 para 10 segundos"* é uma ORDEM, não uma proposta. Recusá-la
+> porque a soma passou a divergir do alvo seria a ferramenta desobedecendo ao
+> usuário para defender um número que o próprio usuário escolheu — e acabou de
+> mudar de ideia sobre.
+
+O que a ferramenta faz é **devolver a nova soma e o alvo**, e a persona manda
+avisar. Informar é útil; recusar seria errado.
+
+### As oito ferramentas
+
+| Canônica | Entrada do modelo | Devolve |
+| --- | --- | --- |
+| `project.get_production_plan` | **nenhuma** (schema vazio) | plano, fontes, `hasScript`, contagem e soma das cenas |
+| `project.save_production_plan` | `title`, `targetDurationSeconds` (obrigatórios), `logline`, `synopsis`, `format`, `aspectRatio`, `genre`, `tone`, `audience`, `language`, `sourceDocumentIds` | o plano gravado |
+| `project.get_script` | **nenhuma** | roteiro inteiro, contagem de cenas |
+| `project.save_script` | `title`, `fullText` (obrigatórios), `summary` | o roteiro gravado |
+| `project.list_scenes` | **nenhuma** | resumo **bounded** de todas: `ordinal`, `title`, `purpose`, `durationSeconds`, `status`, mais soma e alvo |
+| `project.get_scene` | `ordinal` | a cena inteira, com narração e descrição visual |
+| `project.replace_scenes` | `scenes[]` | a estrutura resultante |
+| `project.update_scene` | `ordinal` + campos permitidos | a cena, mais a nova soma e o alvo |
+
+**`list_scenes` e `get_scene` existem os dois de propósito.** Listar é para
+ESCOLHER: quarenta cenas com quatro mil caracteres de narração cada não caberiam
+num turno. Ler uma é para LER. Quem lista está procurando, não lendo.
+
+**Nenhum schema contém** `projectId`, `threadId`, `sessionId`, `workflowId`,
+`path`, `filename`, `assetId` ou `jobId` — e um campo interno enfiado nos
+argumentos é **RECUSADO com o nome dele**, não ignorado. Aceitar em silêncio
+ensinaria ao modelo que o campo existe e que ele foi obedecido; a chamada
+seguinte viria com o projeto do vizinho. Vale a regra 5: `ToolContext.projectId`
+é a autoridade, sempre.
+
+Os handlers moram em três arquivos, um por entidade
+(`productionPlan.js`, `productionScript.js`, `productionScenes.js`), e não em
+oito. Cada arquivo é dono da lista de campos editáveis da SUA entidade; separar
+`get` de `save` duplicaria essa lista, e a cópia esquecida seria a permissiva.
+
+### Hermes e persona
+
+Oito aliases novos na tabela literal fechada, oito schemas no plugin. **O
+registry passou de 5 para 13 ferramentas neste passo.**
+
+A persona (`integrations/hermes/persona/showrunner.md`) ganhou três blocos:
+
+- **transformar material em produção** — a ordem obrigatória (entender → plano →
+  roteiro → cenas → responder), a duração alvo em segundos, e a instrução de
+  ajustar e regravar sozinho quando a soma não fechar;
+- **mudar algo já planejado** — consultar o estado real antes, alterar só o que
+  foi pedido, e avisar quando a soma se afastar do alvo em vez de "corrigir" as
+  outras cenas;
+- **nunca afirmar o que não fez** — não dizer "criei as cenas" sem ter usado as
+  ferramentas. Descrever uma estrutura na conversa não é tê-la criado, e um
+  usuário que acredita que o plano existe vai pedir "mude a cena 4" sobre algo
+  que nunca foi gravado.
+
+E a lista de capacidades passou de quatro para cinco, com "planejar a produção".
+
+**Nada disto entra no contexto de todo turno.** O plano, o roteiro e as cenas são
+consultados por ferramenta, sob demanda. Despejar quarenta cenas em cada turno
+gastaria o contexto para responder "oi".
+
+### O fluxo real, medido
+
+```
+project.read_document  (até eof)
+  → project.save_production_plan
+  → project.save_script
+  → project.replace_scenes
+```
+
+O domínio força a ordem; a persona a ensina. As duas coisas, porque a persona
+sozinha é obediência a prompt.
+
+### Smoke real — o PDF do Prometeu
+
+Ambiente: ComfyUI `:8188`, Hermes dedicado `:8788` (v0.20.3), Next `:3100`.
+Projeto novo, conversa nova, `Prometeu_O_Fogo_da_Humanidade.pdf` anexado —
+**6 páginas, 5.568 caracteres**.
+
+> *"Transforme este PDF em um mini-documentário de 2 minutos. Crie o plano, o
+> roteiro e as cenas, mas ainda não gere imagens ou vídeos."*
+
+```
+FERRAMENTAS: project.read_document → project.save_production_plan
+           → project.save_script → project.replace_scenes
+```
+
+No banco, em consulta **somente leitura**:
+
+```
+plan_mtufdjml_0d13ce16   "Prometeu: O Fogo da Humanidade"
+                         format mini-documentário · target 120s · 16:9 · rascunho
+  fontes: doc_mtufdag3_ca0bd482 → Prometeu_O_Fogo_da_Humanidade.pdf
+script_mtufds3c_e5f3c9cb  1.577 caracteres
+
+ 1 | 15s | Antes da centelha        6 | 12s | A libertação
+ 2 | 17s | A proibição de Zeus      7 | 14s | O fogo que permanece
+ 3 | 18s | O roubo do fogo
+ 4 | 22s | A humanidade iluminada   ordinais 1..7 · soma 120s · alvo 120s
+ 5 | 22s | A ira e o preço
+```
+
+### Smoke de edição — a cena 2, e só ela
+
+Na **mesma thread**:
+
+> *"Deixe a cena 2 mais dramática e reduza sua duração em 5 segundos."*
+
+```
+FERRAMENTAS: project.list_scenes → project.get_scene → project.update_scene
+```
+
+Ele consultou o estado real antes de mexer. A resposta: *"Sua duração foi
+reduzida de 17 para 12 segundos. O filme agora soma 115 segundos, ficando 5
+segundos abaixo da duração-alvo."* — avisou do desvio em vez de corrigir as
+outras cenas por conta própria.
+
+**A prova no banco:**
+
+```
+ 1 |  15s | created 1788978145093 | updated 1788978145093
+ 2 |  12s | created 1788978145093 | updated 1788978161965   ← a única alterada
+ 3 |  18s | created 1788978145093 | updated 1788978145093
+ 4 |  22s | created 1788978145093 | updated 1788978145093
+ 5 |  22s | created 1788978145093 | updated 1788978145093
+ 6 |  12s | created 1788978145093 | updated 1788978145093
+ 7 |  14s | created 1788978145093 | updated 1788978145093
+
+cenas com updatedAt != createdAt: [2]      soma 115s · alvo 120s
+```
+
+Uma cena e apenas uma foi tocada, e é a cena 2. As outras seis mantêm os dois
+carimbos idênticos aos da criação — não foram reescritas com o mesmo conteúdo:
+não foram escritas.
+
+Terceiro turno, *"Me mostre a estrutura atual das cenas"* → só
+`project.list_scenes`, e a tabela devolvida bate com o banco. Ele consultou o
+estado real em vez de repetir o que tinha dito.
+
+### Prova de zero mídia
+
+Este é o critério obrigatório do passo, e ele foi medido **no banco**, não
+deduzido do comportamento do agente:
+
+```
+generation_jobs    6 antes  →   6 depois
+assets            28 antes  →  28 depois
+
+neste Project do smoke:   0 generation_jobs · 0 Assets · 0 agent_message_assets
+```
+
+> **Production Planning ≠ Production Execution.**
+
+E no SSE dos três turnos — 431 deltas, 8 `tool.completed` — **nenhum carregou
+`result`**: a redução final descarta o resultado de qualquer ferramenta que não
+produza Asset, e nenhuma destas produz. Nenhum `projectId`, `threadId`,
+`documentId`, `plan_`, `script_`, `scene_`, `nextCursor`, `ordinal`, alias do
+runtime ou nome do runtime atravessou. Só os nomes canônicos.
+
+### Aprovação — só a base
+
+O que existe é a coluna `status`, com `rascunho` e `aprovado`, no vocabulário que
+a aplicação já usava. **Nada escreve `aprovado`**, e `status` não é campo que o
+modelo possa escrever.
+
+`lib/approval.js` trata de item de timeline COM MÍDIA (`canAddToTimeline` exige
+`url`/`poster`/`mediaUrl`) e não se aplica a um plano. Integrá-lo exigiria
+mudança grande, e o enunciado do passo dizia para não fazê-la. **O fluxo de
+aprovação fica para uma etapa posterior**, e a base está pronta para ele.
+
+### Testes do Passo 12
+
+**3 arquivos novos, 80 testes.** Baseline: **1128 → 1208**.
+
+| Arquivo | Testes | Protege |
+| --- | --- | --- |
+| `domain-production.test.mjs` | 42 | os invariantes, a migração 8→9, a `scenes` legada intacta, a forma pública |
+| `agent-production-tools.test.mjs` | 33 | ToolContext como autoridade, cross-project, limites, aliases, bridge, fronteira pública |
+| `agent-production-planning.test.mjs` | 5 | os três turnos, o plano saído do documento, o reload, e zero mídia |
+
+O multi-turno é determinístico por construção: o runtime é um duplo roteirizado
+que usa o `invokeTool` real do gateway, então o ToolContext é o de verdade. Um
+teste que dependesse de um modelo real provaria que aquele modelo, naquele dia,
+se comportou.
+
+Três detalhes que valem preservar:
+
+- a edição localizada é provada comparando as cenas **campo a campo, `updatedAt`
+  incluído**. Um agente que reconstruísse o filme passaria em qualquer teste que
+  só olhasse a cena alterada;
+- os fatos do fixture são **inventados** (o rio Meridian, o sino Verena, o código
+  QV-7731). Uma narração que os contenha só pode ter vindo da leitura;
+- o teste de zero mídia conta linhas em `generation_jobs` e `assets`. Provar
+  apenas que o duplo não chamou a ferramenta de geração provaria algo sobre o
+  duplo.
+
+Sete testes existentes foram ajustados — todos por fixarem listas fechadas ou a
+versão do esquema. Dois merecem nota:
+
+- **`agent-architecture.test.mjs`:** a proibição `/\bdocument\b/`, que existe para
+  pegar o global do DOM, acertava junto a palavra portuguesa
+  *"mini-documentário"* — o hífen abre a palavra e o `á` a fecha, porque o `\b`
+  do JavaScript só conhece ASCII. Foi trocada por um padrão que exige `document`
+  sozinho como IDENTIFICADOR. `document.getElementById` continua sendo pego;
+  "documentário" é vocabulário do produto e deixou de ser acusado;
+- **`agent-document-tools.test.mjs`:** ele repetia a lista fechada de aliases que
+  `hermes-aliases.test.mjs` já confere. Passou a checar só as duas do Passo 11.
+  Três cópias da mesma lista seriam mais um lugar para alguém esquecer — e o
+  esquecido é sempre o que deixa passar.
+
+---
+
+## 23 · O que está aberto, e o próximo passo
+
+### O estado, em seis linhas
 
 ```
 Passos 1–10 CORE ...................... ✅
@@ -2264,34 +2738,46 @@ Passo 11 · Document Ingestion ......... ✅
 Thread Continuity ..................... ✅
 I2V com linhagem comprovada ........... ✅
 Quality Gate · Core Audiovisual E2E ... ✅
+Passo 12 · Production Planning ........ ✅
 
 10.6 · Operational Hardening .......... ⏸ backlog
 ```
 
-### NEXT — PASSO 12: PRODUCTION PLANNING
+### NEXT — PASSO 13: PRODUCTION EXECUTION
 
-O Passo 11 entregou a primeira metade do exemplo-guia do produto: o material
-entra e o agente o lê. O Passo 12 é a segunda metade — o que se FAZ com ele.
+O Passo 12 fez o plano existir. O Passo 13 é fazê-lo virar mídia.
+
+A direção, e só a direção:
 
 ```
-Material / ProjectDocument
-  → proposta narrativa
-  → roteiro estruturado
-  → cenas PERSISTENTES
-  → preparação para geração audiovisual
+Production Scene
+  → mídia da cena
+  → imagem
+  → vídeo
+  → Asset associado à Scene
 ```
 
-**Ele ainda não foi começado.** Nada dele existe no código.
+**Ele ainda não foi começado, e a arquitetura dele ainda não foi decidida.** Este
+documento registra o rumo, não o desenho: inventar aqui a forma final da ligação
+Scene → Asset seria escolher, sem medir, a decisão mais cara do passo.
 
-Dois pontos de partida que já estão no lugar e não precisam ser inventados:
+O que já está no lugar e não precisa ser inventado:
 
-- o domínio **já tem `scenes`** (migração 1), com número, título, descrição,
-  duração, status e imagem — falta a ponte da conversa até ele;
-- o vocabulário de aprovação **já existe** em `lib/approval.js`.
+- **as cenas são reais e endereçáveis** — `production_scenes`, com posição,
+  duração e descrição visual (seção 22);
+- **o pipeline de geração é genérico e durável** — `generation/facade.js`, o
+  livro-razão `generation_jobs`, a autonomia do Passo 9 e a recuperação de
+  arranque do Passo 10;
+- **a linhagem entre Assets é real e verificada** — `derivedFromAssetId` no
+  Asset e no livro-razão, provado no produto (seção 20);
+- **a descrição visual de uma cena NÃO é um prompt de modelo**, e isso foi
+  decisão do Passo 12. Traduzir direção em prompt é trabalho do Passo 13, e é
+  onde ele deve morar.
 
-E a linhagem entre Assets — de que um plano de produção com cenas encadeadas
-depende — já é real e está verificada: `derivedFromAssetId` é gravado no
-livro-razão e no Asset, e o Quality Gate provou isso no produto (seção 20).
+As perguntas em aberto que o Passo 13 vai ter de responder — e que este
+documento **não** responde: como uma Scene se liga ao Asset dela; o que acontece
+quando a cena muda depois de gerada; se a geração é por cena ou em lote; e como
+o backpressure entra nisso (limitação J).
 
 ### As frentes que continuam abertas
 
@@ -2300,12 +2786,15 @@ frente exige — a ordem é decisão de produto.
 
 | Frente | O que ela exige, concretamente |
 | --- | --- |
-| **Passo 12 — Production Planning** | **o próximo.** Documento → proposta narrativa → roteiro → cenas. O domínio já tem `scenes`; falta a ponte da conversa até ele |
+| **Passo 13 — Production Execution** | **o próximo.** Scene → mídia → Asset ligado à Scene. As cenas já existem e são endereçáveis; a ligação Scene → Asset ainda não foi desenhada |
 | **10.6 — Operational Hardening** | fila própria, backpressure, concorrência controlada, cancelamento seletivo, leases/multi-worker (limitação J) |
 | **OCR / PDF escaneado** | fora do Passo 11 por decisão. Hoje um PDF sem texto é recusado com honestidade |
 | **Conhecimento / RAG** | limitação G. Os chunks do Passo 11 não são isso |
 | **Memória de projeto, personagens, continuidade** | limitação H — é o que faz um personagem parecer o mesmo entre cenas |
-| **Approvals** | o vocabulário já existe em `lib/approval.js`; falta o fluxo |
+| **Approvals** | a BASE já existe: a coluna `status` de plano, roteiro e cena, com `rascunho` e `aprovado` (seção 22). Falta o fluxo — e `lib/approval.js`, que trata de item de timeline COM mídia, não serve como está |
+| **Reordenar e apagar cenas** | hoje as duas exigem `project.replace_scenes`. Uma `reorder_scene` precisa decidir o que acontece com os ordinais das outras; uma `delete_scene`, o que fazer com o buraco no `1..n` |
+| **Versões de plano, roteiro e cenas** | só vale a pena com uma forma de escolher entre elas. Ver a limitação G-bis |
+| **UI de Production Planning** | plano, roteiro e cenas hoje só existem pela conversa |
 | **Montagem final** | juntar os planos aprovados numa peça só |
 | **Multi-provider / nuvem** | hoje só ComfyUI local |
 | **WhatsApp e outros canais** | a arquitetura permite (toda decisão mora no servidor), nada foi construído — limitação I |
@@ -2319,7 +2808,7 @@ Duas coisas que não são frentes, mas continuam pendentes e são baratas:
 
 ---
 
-## 23 · NON-NEGOTIABLE ARCHITECTURE RULES
+## 24 · NON-NEGOTIABLE ARCHITECTURE RULES
 
 Cada regra existe porque a alternativa já causou, ou causaria, um defeito
 concreto. Não são preferência de estilo.
@@ -2433,10 +2922,29 @@ concreto. Não são preferência de estilo.
     `assistantMessageId` aceitam o **mesmo fato** repetido (replay é idempotente)
     e recusam um fato diferente. É o que torna reconciliação e acompanhamento
     seguros rodando juntos.
+35. **Planejar não é gerar.** O planejamento de produção não cria mídia, e
+    nenhuma ferramenta dele alcança `generation/`. Um plano precisa existir e
+    ser editável antes de qualquer segundo de GPU ser gasto nele — e a prova
+    disso é medida no banco (`generation_jobs` e `assets` inalterados), não
+    deduzida do comportamento do agente. Ver seção 22.
+36. **Uma cena é endereçada pela POSIÇÃO, não por um identificador.** O
+    `ordinal` é o número que a pessoa fala — "a cena 4" — e ele é sempre
+    relativo ao projeto do ToolContext. O `id` de uma cena não sai do servidor.
+    Isso é mais forte do que conferir um `sceneId`: não existe identificador
+    para o modelo carregar entre projetos, confundir ou inventar, então
+    cross-project deixa de ser recusado e passa a ser impronunciável. Uma
+    fronteira que não precisa de conferência é a única que ninguém esquece de
+    conferir.
+37. **Uma ordem do usuário não é recusada para defender um número que ele
+    escolheu.** "Reduza a cena 5 para 10 segundos" é obedecido mesmo quando
+    afasta a produção da duração alvo; o que a ferramenta faz é DEVOLVER a nova
+    soma para o agente avisar. A tolerância existe onde a duração é uma
+    PROPOSTA (a criação do conjunto), não onde ela é uma instrução. Informar é
+    útil; recusar seria a ferramenta discutindo com quem dirige.
 
 ---
 
-## 24 · Mapa de arquivos
+## 25 · Mapa de arquivos
 
 Só o que ajuda a navegar. Não é catálogo do repositório.
 
@@ -2484,7 +2992,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/agent/hermes/sessionBinding.js` | sessão ↔ thread, os dois ids |
 | `integrations/hermes/README.md` | **como operar** — leia antes de subir o runtime |
 | `integrations/hermes/prepare.mjs` | prepara o `HERMES_HOME` dedicado |
-| `integrations/hermes/persona/showrunner.md` | **a persona — fonte de verdade** |
+| `integrations/hermes/persona/showrunner.md` | **a persona — fonte de verdade**. Inclui a ordem obrigatória do planejamento e a proibição de afirmar o que não foi gravado |
 | `integrations/hermes/config.template.yaml` | modelo do `config.yaml` dedicado |
 | `integrations/hermes/showrunner-plugin/` | o plugin (instalado por symlink) |
 
@@ -2499,6 +3007,9 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/agent/tools/handlers/getJob.js` | `og.get_job` |
 | `lib/server/agent/tools/handlers/listDocuments.js` | `project.list_documents` |
 | `lib/server/agent/tools/handlers/readDocument.js` | `project.read_document` |
+| `lib/server/agent/tools/handlers/productionPlan.js` | `project.get_production_plan` · `project.save_production_plan` — e as conferências que as três famílias de planejamento compartilham |
+| `lib/server/agent/tools/handlers/productionScript.js` | `project.get_script` · `project.save_script` |
+| `lib/server/agent/tools/handlers/productionScenes.js` | `project.list_scenes` · `project.get_scene` · `project.replace_scenes` · `project.update_scene` |
 | `lib/server/agent/tools/jobWatch.js` | **o acompanhamento**: single-flight, laço, teto, ciclo de vida, associação |
 
 ### Geração
@@ -2526,11 +3037,12 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/domain/generationJobStates.js` | **o vocabulário de estados de geração** — zero imports, é domínio |
 | `lib/server/domain/generationJobs.js` | **o livro-razão**: a única porta de escrita de `generation_jobs` |
 | `lib/server/domain/projects.js` | Project (`registerProject`, `ensureProject`) |
-| `lib/server/domain/scenes.js` | Scene |
 | `lib/server/domain/assets.js` | Asset e linhagem |
 | `lib/server/domain/backfill.js` | registro de mídia já em disco (idempotente) |
 | `lib/server/domain/documentTypes.js` | **o vocabulário dos tipos de documento** — zero imports, é domínio |
 | `lib/server/domain/documents.js` | **o documento do Project**: criação transacional, leitura paginada, fronteira de projeto |
+| `lib/server/domain/production.js` | **o planejamento**: plano, roteiro e cenas. A única porta de escrita, e o lugar onde a cadeia Project → Plan → Script → Scenes é imposta |
+| `lib/server/domain/scenes.js` | Scene do **storyboard** (migração 1). Legada, sem escritor em produção — **não confunda com `production.js`**; ver seção 7 |
 | `lib/server/domain/index.js` | barril — **note o que ele deliberadamente não exporta** |
 
 ### Ingestão de documentos (Passo 11)
@@ -2565,7 +3077,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 | Caminho | Papel |
 | --- | --- |
-| `tests/*.test.mjs` | 59 arquivos, 1010 testes, na suíte |
+| `tests/*.test.mjs` | 70 arquivos, 1208 testes, na suíte |
 | `tests/agent-job-autonomy.test.mjs` | o Passo 9 inteiro — 40 testes |
 | `tests/agent-event-surface.test.mjs` | a fronteira pública dos eventos — 12 testes |
 | `tests/agent-turn-anchor.test.mjs` | a âncora do turno (10.0) — 18 testes |
@@ -2582,6 +3094,9 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `tests/documents-boundary.test.mjs` | as fronteiras da ingestão — 9 testes |
 | `tests/agent-thread-continuity.test.mjs` | a continuidade da thread (seção 19) — 12 testes |
 | `tests/agent-image-to-video.test.mjs` | "anime essa imagem" → I2V com linhagem (seção 21) — 14 testes |
+| `tests/domain-production.test.mjs` | o planejamento no domínio, a migração 8→9 e a `scenes` legada intacta (Passo 12) — 42 testes |
+| `tests/agent-production-tools.test.mjs` | as oito ferramentas de planejamento e a fronteira delas — 33 testes |
+| `tests/agent-production-planning.test.mjs` | o caminho inteiro: documento → plano → roteiro → cenas → edição → reload → zero mídia — 5 testes |
 | `tests/fixtures/documents/` | quatro PDFs mínimos versionados + o `gerar.mjs` que os produz |
 | `tests/smoke-hermes-real.mjs` | smoke real com Hermes — **fora** da suíte |
 | `tests/smoke-i2v-real.mjs` | smoke real de i2v — **fora** da suíte |
@@ -2598,7 +3113,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 ---
 
-## 25 · Convenções que valem a pena preservar
+## 26 · Convenções que valem a pena preservar
 
 - **Injeção de dependência no estilo da casa:** último parâmetro com default
   (`db = database()`, `root = RUNTIME_ROOT`, `deps = {}`). É o que torna tudo

@@ -25,6 +25,8 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
 
   assert.deepEqual(tabelas, [
     'agent_message_assets', 'agent_messages', 'agent_threads', 'assets',
+    // PASSO 10.2: o livro-razão das gerações.
+    'generation_jobs',
     'projects', 'runtime_sessions', 'scenes',
   ]);
   db.close();
@@ -36,11 +38,17 @@ test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () =
   // Um arquivo com a forma da versão 1: as tabelas da migração 2 não existem
   // e o user_version diz 1. É o estado de qualquer banco criado antes dela.
   const antigo = openDatabase(caminho);
-  // A migração 4 também precisa sair: o arquivo nasceu na versão corrente, e
-  // deixá-la para trás faria a reexecução esbarrar numa tabela já existente —
-  // um artefato do teste, não do esquema.
+  // As tabelas das migrações seguintes também precisam sair: o arquivo nasceu
+  // na versão corrente, e deixá-las para trás faria a reexecução esbarrar numa
+  // tabela já existente — um artefato do teste, não do esquema.
+  //
+  // A ordem importa: `generation_jobs` referencia conversa, mensagem e Asset,
+  // e sai primeiro. Com a chave estrangeira ligada, apagar o referenciado antes
+  // do referenciador deixa o esquema num estado que a migração seguinte não
+  // consegue reconstruir.
   antigo.exec(
-    'DROP TABLE agent_message_assets; DROP TABLE runtime_sessions; '
+    'DROP TABLE generation_jobs; '
+    + 'DROP TABLE agent_message_assets; DROP TABLE runtime_sessions; '
     + 'DROP TABLE agent_messages; DROP TABLE agent_threads; '
     + 'PRAGMA user_version = 1',
   );

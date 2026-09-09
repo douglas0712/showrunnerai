@@ -7,14 +7,18 @@
 //
 // Agora há três camadas, e cada fronteira tem um dono:
 //
-//   provider  comfy/status.js → STATES        (o executor)
-//   domínio   generation/jobStates.js         (o Showrunner)
-//   produção  agent/tools/jobWatch.js         (a conversa)
+//   provider  comfy/status.js → STATES              (o executor)
+//   domínio   domain/generationJobStates.js          (o Showrunner)
+//   produção  agent/tools/jobWatch.js                (a conversa)
+//
+// A fonte do vocabulário mudou de lugar no PASSO 10.2, quando ele virou coluna:
+// `generation/jobStates.js` continua sendo a porta desta camada, mas é
+// reexportação. Quem define é o domínio, porque é o banco que grava.
 //
 // E a passagem entre a primeira e a segunda mora num ADAPTADOR, não no
 // vocabulário:
 //
-//     comfy/status.js  →  comfyJobState.js  →  jobStates.js
+//     comfy/status.js  →  comfyJobState.js  →  jobStates.js  →  domain/…
 //
 // A direção é a metade que importa. Enquanto a tradução morava dentro do
 // vocabulário, o domínio conhecia o nome de um executor — e no dia do segundo
@@ -231,18 +235,27 @@ async function codigoDe(relativo) {
 }
 
 test('A. o vocabulário não importa NADA — nem o provider, nem o agente', async () => {
-  const codigo = await codigoDe('../lib/server/generation/jobStates.js');
+  const codigo = await codigoDe('../lib/server/domain/generationJobStates.js');
 
   const importados = [...codigo.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(importados, [], 'o vocabulário genérico ganhou uma dependência');
 
   for (const proibido of [/comfy/i, /agent\//, /thread/i, /\btool\b/i, /runtime/i, /jobWatch/]) {
-    assert.ok(!proibido.test(codigo), `jobStates.js cita ${proibido}`);
+    assert.ok(!proibido.test(codigo), `generationJobStates.js cita ${proibido}`);
   }
+
+  // E a porta da camada de geração é reexportação pura: uma dependência só, e
+  // nenhuma constante redeclarada.
+  const porta = await codigoDe('../lib/server/generation/jobStates.js');
+  assert.deepEqual(
+    [...porta.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]),
+    ['../domain/generationJobStates.js'],
+  );
+  assert.ok(!/JOB_STATES\s*=/.test(porta), 'a camada de geração redeclarou o vocabulário');
 });
 
 test('B. o vocabulário não nomeia executor nenhum, nem agora nem por engano', async () => {
-  const codigo = await codigoDe('../lib/server/generation/jobStates.js');
+  const codigo = await codigoDe('../lib/server/domain/generationJobStates.js');
 
   for (const provider of [
     'comfy', 'veo', 'kling', 'seedance', 'minimax', 'ideogram', 'runway',
@@ -250,7 +263,7 @@ test('B. o vocabulário não nomeia executor nenhum, nem agora nem por engano', 
   ]) {
     assert.ok(
       !new RegExp(provider, 'i').test(codigo),
-      `jobStates.js cita "${provider}" em código`,
+      `generationJobStates.js cita "${provider}" em código`,
     );
   }
 });
@@ -268,11 +281,12 @@ test('B-bis. o adaptador conhece as DUAS línguas, e só elas', async () => {
 });
 
 test('B-ter. a direção é adaptador → vocabulário, nunca o contrário', async () => {
-  const vocabulario = await codigoDe('../lib/server/generation/jobStates.js');
+  const vocabulario = await codigoDe('../lib/server/domain/generationJobStates.js');
   const adaptador = await codigoDe('../lib/server/generation/comfyJobState.js');
 
   assert.ok(adaptador.includes("from './jobStates.js'"), 'o adaptador não aponta para o vocabulário');
   assert.ok(!vocabulario.includes('comfyJobState'), 'o vocabulário aponta para o adaptador');
+  assert.ok(!vocabulario.includes('generation/'), 'o domínio aponta para a camada de geração');
   // E acrescentar um provider é acrescentar um arquivo: o vocabulário não tem
   // função nenhuma que nomeie origem.
   assert.ok(!/from[A-Z]\w*State/.test(vocabulario), 'o vocabulário ganhou uma função de tradução');

@@ -110,6 +110,10 @@ test('A. um banco no esquema 6 migra até o corrente sem perder nada, e sem back
       // chaves estrangeiras permitem: quem referencia sai antes do referenciado.
       // PASSO 12: o planejamento sai primeiro — as cenas dependem do roteiro,
       // e as fontes do plano dependem de `project_documents`.
+      // PASSO 13-A: a mídia da cena sai primeiro — ela referencia a cena, o
+      // Asset e o próprio generation_jobs.
+      db.exec('DROP TABLE production_scene_media_selections');
+      db.exec('DROP TABLE production_scene_media');
       db.exec('DROP TABLE production_scenes');
       db.exec('DROP TABLE production_scripts');
       db.exec('DROP TABLE production_plan_sources');

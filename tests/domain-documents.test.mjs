@@ -110,7 +110,9 @@ test('28b. migrar da versão 7 para a 8 preserva tudo o que já existia', () => 
     // PASSO 12: as tabelas do planejamento também não existiam na versão 7, e
     // saem antes das de documento — `production_plan_sources` referencia
     // `project_documents`.
-    'DROP TABLE production_scenes; DROP TABLE production_scripts; '
+    'DROP TABLE production_scene_media_selections; '
+    + 'DROP TABLE production_scene_media; '
+    + 'DROP TABLE production_scenes; DROP TABLE production_scripts; '
     + 'DROP TABLE production_plan_sources; DROP TABLE production_plans; '
     + 'DROP TABLE agent_message_documents; DROP TABLE document_chunks; '
     + 'DROP TABLE project_documents; PRAGMA user_version = 7',

@@ -764,7 +764,12 @@ test('N. a migração 8 → 9 preserva tudo o que já estava no banco', async ()
     sizeBytes: 10, sha256: SHA, chunks: [{ text: 'material antigo' }],
   }, primeira);
 
-  // Volta ao 8 à força, como um banco que nunca viu a migração 9.
+  // Volta ao 8 à força, como um banco que nunca viu a migração 9. As tabelas
+  // das migrações POSTERIORES saem primeiro: voltar a versão faz o banco
+  // reexecutar tudo o que vem depois do 8, e uma tabela sobrevivente do 10
+  // faria o CREATE dela esbarrar em si mesma.
+  primeira.exec('DROP TABLE production_scene_media_selections');
+  primeira.exec('DROP TABLE production_scene_media');
   primeira.exec('DROP TABLE production_plan_sources');
   primeira.exec('DROP TABLE production_scenes');
   primeira.exec('DROP TABLE production_scripts');
@@ -774,8 +779,8 @@ test('N. a migração 8 → 9 preserva tudo o que já estava no banco', async ()
 
   // Reabrir aplica só o que falta.
   const segunda = openDatabase(caminho);
-  assert.equal(schemaVersion(segunda), 9);
-  assert.equal(ESQUEMA_ATUAL, 9);
+  assert.equal(schemaVersion(segunda), ESQUEMA_ATUAL);
+  assert.ok(ESQUEMA_ATUAL >= 9, 'a migração 9 precisa continuar existindo');
 
   // Tudo o que existia continua lá, byte a byte.
   assert.equal(segunda.prepare('SELECT name FROM projects WHERE id = ?').get('proj_antigo').name, 'Existia antes');

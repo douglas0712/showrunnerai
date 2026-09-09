@@ -33,7 +33,12 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
     // PASSO 10.2: o livro-razão das gerações.
     'generation_jobs',
     // PASSO 12: o planejamento da produção — plano, roteiro e cenas.
-    'production_plan_sources', 'production_plans', 'production_scenes',
+    'production_plan_sources', 'production_plans',
+    // PASSO 13-A: os takes de uma cena e a escolha ativa. A mídia é uma LINHA
+    // por tentativa, e não uma coluna na cena, para que regenerar acrescente em
+    // vez de sobrescrever.
+    'production_scene_media', 'production_scene_media_selections',
+    'production_scenes',
     'production_scripts',
     // PASSO 11: o material de referência do projeto.
     'project_documents',
@@ -63,7 +68,9 @@ test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () =
   antigo.exec(
     // PASSO 12: o planejamento sai primeiro de todos — as cenas dependem do
     // roteiro, o roteiro do projeto, e as fontes do plano E do documento.
-    'DROP TABLE production_scenes; DROP TABLE production_scripts; '
+    'DROP TABLE production_scene_media_selections; '
+    + 'DROP TABLE production_scene_media; '
+    + 'DROP TABLE production_scenes; DROP TABLE production_scripts; '
     + 'DROP TABLE production_plan_sources; DROP TABLE production_plans; '
     // PASSO 11: os documentos referenciam projeto e mensagem, então saem antes
     // dos dois — a mesma regra de ordem que já valia para o livro-razão.

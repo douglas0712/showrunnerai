@@ -75,8 +75,10 @@ IMAGE_SCHEMA = {
 VIDEO_SCHEMA = {
     "name": "og_generate_video",
     "description": (
-        "Gera um vídeo a partir de um prompt, opcionalmente animando uma imagem "
-        "já gerada. Devolve um jobId; use og_get_job para acompanhar."
+        "Gera um vídeo. Sem sourceAssetId, gera do zero a partir do texto; com "
+        "sourceAssetId, ANIMA a imagem indicada e o vídeo fica ligado a ela. "
+        "Pedidos como \"anime essa imagem\" exigem sourceAssetId. "
+        "Devolve um jobId; o estúdio acompanha sozinho até o fim."
     ),
     "parameters": {
         "type": "object",
@@ -85,7 +87,18 @@ VIDEO_SCHEMA = {
             "aspect": {"type": "string", "description": 'Proporção: "16:9", "21:9". Padrão: "16:9".'},
             "duration": {"type": "number", "description": "Duração em segundos (1-20). Padrão: 6."},
             "seed": {"type": "integer", "description": "Seed para reprodução. Opcional."},
-            "sourceAssetId": {"type": "string", "description": "Id de uma imagem já gerada, para animar. Opcional."},
+            "sourceAssetId": {
+                "type": "string",
+                "description": (
+                    "Id de uma imagem já produzida nesta conversa, para ANIMAR. "
+                    "Ausente: vídeo do zero, a partir do texto. Presente: anima "
+                    "aquela imagem. Pedidos como \"anime essa imagem\" ou "
+                    "\"transforme essa imagem em vídeo\" EXIGEM este campo — sem "
+                    "ele o vídeo não tem relação com a imagem, por mais que o "
+                    "prompt a descreva. Use um identificador que o sistema "
+                    "informou; nunca invente um."
+                ),
+            },
         },
         "required": ["prompt"],
     },

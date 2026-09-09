@@ -132,12 +132,19 @@ test('13. o gateway chama o runtime, com o contrato completo', async () => {
   // identificador. Nunca caminho, nunca impressão digital e nunca o texto: o
   // conteúdo é lido sob demanda pela ferramenta, não empurrado para dentro de
   // todo turno. Sem anexo, a lista é vazia — e vazia é o caso normal.
+  //
+  // E `images`: as imagens que ESTA conversa já produziu, para o modelo poder
+  // referenciá-las. Sem isso "anime essa imagem" não tem como virar
+  // image-to-video — a ferramenta de geração devolve `{ jobId, kind, status }`,
+  // e o Asset só nasce depois, com o turno do modelo já encerrado. Ele nunca
+  // chegava a ver um identificador para passar em `sourceAssetId`.
   assert.deepEqual(argumentos.context, {
     agentName: 'Showrunner',
     threadId: thread.id,
     projectId: 'proj_sinal',
     userMessageId: turno.userMessage.id,
     attachments: [],
+    images: [],
   });
 
   // 24 · a coleção de tools chega vazia, provando que o argumento já existe.

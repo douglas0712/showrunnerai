@@ -9,14 +9,19 @@ test('Gateway fornece apenas definições públicas das tools', () => {
   const tools = publicToolList(toolRegistry());
 
   assert.ok(Array.isArray(tools), 'publicToolList deve retornar array');
-  assert.equal(tools.length, 3, 'Deve haver 3 tools públicas');
 
-  // Verifica cada tool
+  // A lista é fechada: acrescentar uma ferramenta ao agente é uma decisão, e
+  // ela aparece aqui. `og.*` é o que a produção FAZ; `project.*` é o que o
+  // projeto TEM — e as duas famílias tiram a identidade do ToolContext, nunca
+  // de um argumento do modelo.
   const toolNames = tools.map(t => t.name);
   assert.deepEqual(toolNames.sort(), [
     'og.generate_image',
     'og.generate_video',
     'og.get_job',
+    // PASSO 11: o material de referência do projeto.
+    'project.list_documents',
+    'project.read_document',
   ]);
 
   // Nenhuma tool tem execute() exposta

@@ -103,12 +103,53 @@ JOB_SCHEMA = {
     },
 }
 
+# ── documentos de referência do projeto ────────────────────────────────────
+#
+# O plugin NÃO abre PDF, não lê arquivo e não conhece caminho. Ele encaminha o
+# pedido, e quem tem o documento — e quem sabe de qual projeto ele é — é o
+# Showrunner, do outro lado do socket. É a mesma fronteira das ferramentas de
+# geração, e vale pelo mesmo motivo.
+#
+# Repare que nenhum dos dois schemas tem projectId. Ele é estado do Showrunner,
+# e um campo de estado no schema é um campo que o modelo pode preencher.
+
+LIST_DOCUMENTS_SCHEMA = {
+    "name": "project_list_documents",
+    "description": (
+        "Lista os documentos de referência já anexados a este projeto (PDF ou TXT), "
+        "com nome, páginas e tamanho do texto. Use quando o usuário citar um "
+        "documento sem anexá-lo neste turno, para descobrir o documentId."
+    ),
+    "parameters": {"type": "object", "properties": {}, "required": []},
+}
+
+READ_DOCUMENT_SCHEMA = {
+    "name": "project_read_document",
+    "description": (
+        "Lê o conteúdo de um documento do projeto, em partes. Devolve um trecho, "
+        "um nextCursor e um eof. Para tarefas que exigem o documento inteiro "
+        "(resumir, listar todos os pontos, propor uma estrutura), chame de novo "
+        "passando o nextCursor recebido até eof ser true, e não afirme ter lido "
+        "o documento inteiro antes disso."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "documentId": {"type": "string", "description": "Id do documento."},
+            "cursor": {"type": "integer", "description": "nextCursor da leitura anterior. Omita para começar do início."},
+        },
+        "required": ["documentId"],
+    },
+}
+
 # A allowlist do plugin — a segunda das quatro barreiras. O nome pedido tem de
 # estar aqui para sequer virar uma mensagem no socket.
 _TOOLS = (
     ("og_generate_image", IMAGE_SCHEMA),
     ("og_generate_video", VIDEO_SCHEMA),
     ("og_get_job", JOB_SCHEMA),
+    ("project_list_documents", LIST_DOCUMENTS_SCHEMA),
+    ("project_read_document", READ_DOCUMENT_SCHEMA),
 )
 _ALLOWLIST = frozenset(name for name, _ in _TOOLS)
 

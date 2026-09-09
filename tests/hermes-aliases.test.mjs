@@ -13,11 +13,17 @@ import {
   toCanonicalToolName, toHermesAlias, UnknownToolAliasError,
 } from '../lib/server/agent/hermes/aliases.js';
 
-test('os três aliases existem e mapeiam para os nomes canônicos', () => {
-  assert.deepEqual(hermesAliases().sort(), ['og_generate_image', 'og_generate_video', 'og_get_job']);
+test('os aliases existem e mapeiam para os nomes canônicos', () => {
+  assert.deepEqual(hermesAliases().sort(), [
+    'og_generate_image', 'og_generate_video', 'og_get_job',
+    // PASSO 11: o material de referência do projeto.
+    'project_list_documents', 'project_read_document',
+  ]);
   assert.equal(toCanonicalToolName('og_generate_image'), 'og.generate_image');
   assert.equal(toCanonicalToolName('og_generate_video'), 'og.generate_video');
   assert.equal(toCanonicalToolName('og_get_job'), 'og.get_job');
+  assert.equal(toCanonicalToolName('project_list_documents'), 'project.list_documents');
+  assert.equal(toCanonicalToolName('project_read_document'), 'project.read_document');
 });
 
 test('a volta é consistente com a ida', () => {
@@ -32,8 +38,14 @@ test('a volta é consistente com a ida', () => {
 test('nenhum nome canônico contém underscore no lugar do ponto', () => {
   // Se um dia alguém "simplificar" renomeando as tools internas, este teste cai
   // — que é o objetivo. O nome canônico é contrato do Showrunner.
+  // O separador é o PONTO, e o prefixo diz de quem é a ferramenta: `og.` é a
+  // produção, `project.` é o que o projeto tem. O que este teste tranca é o
+  // separador — se um dia alguém "simplificar" renomeando `og.get_job` para
+  // `og_get_job`, o nome canônico e o alias viram a mesma string, e a fronteira
+  // que a tabela existe para desenhar deixa de existir.
   for (const canonico of canonicalToolNames()) {
-    assert.match(canonico, /^og\.[a-z_]+$/);
+    assert.match(canonico, /^(og|project)\.[a-z_]+$/);
+    assert.equal(canonico.split('.').length, 2);
   }
 });
 

@@ -24,9 +24,16 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
     .filter((n) => !n.startsWith('sqlite_'));
 
   assert.deepEqual(tabelas, [
-    'agent_message_assets', 'agent_messages', 'agent_threads', 'assets',
+    'agent_message_assets',
+    // PASSO 11: o documento anexado a um turno.
+    'agent_message_documents',
+    'agent_messages', 'agent_threads', 'assets',
+    // PASSO 11: as unidades de leitura de um documento.
+    'document_chunks',
     // PASSO 10.2: o livro-razão das gerações.
     'generation_jobs',
+    // PASSO 11: o material de referência do projeto.
+    'project_documents',
     'projects', 'runtime_sessions', 'scenes',
   ]);
   db.close();
@@ -47,7 +54,11 @@ test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () =
   // do referenciador deixa o esquema num estado que a migração seguinte não
   // consegue reconstruir.
   antigo.exec(
-    'DROP TABLE generation_jobs; '
+    // PASSO 11: os documentos referenciam projeto e mensagem, então saem antes
+    // dos dois — a mesma regra de ordem que já valia para o livro-razão.
+    'DROP TABLE agent_message_documents; DROP TABLE document_chunks; '
+    + 'DROP TABLE project_documents; '
+    + 'DROP TABLE generation_jobs; '
     + 'DROP TABLE agent_message_assets; DROP TABLE runtime_sessions; '
     + 'DROP TABLE agent_messages; DROP TABLE agent_threads; '
     + 'PRAGMA user_version = 1',

@@ -9,7 +9,7 @@ import { Icon } from '../ui/icons';
 import {
   aplicarEvento, ensureThread, fetchThread, friendlyError, labelForProduction,
   lembrarThread, novaResposta, producaoEmCurso, semUrlsJaExibidas, startNewThread,
-  streamTurn, threadLembrada,
+  streamTurn, threadLembrada, uploadDocument,
 } from '@/lib/agentClient';
 
 /**
@@ -20,6 +20,9 @@ import {
  * o resultado aparece, não se ele vai aparecer.
  */
 const INTERVALO_ATUALIZACAO_MS = 3000;
+
+/** O que o seletor de arquivos oferece. O servidor confere os bytes de novo. */
+const TIPOS_ACEITOS = '.pdf,.txt,application/pdf,text/plain';
 
 /**
  * A conversa com o Showrunner.
@@ -44,10 +47,19 @@ export default function AgentScreen() {
   // sabe: o turno acaba muito antes de a mídia existir.
   const [producao, setProducao] = useState([]);
   const [tique, setTique] = useState(0);
+  // Os documentos já enviados e ainda não anexados a uma mensagem.
+  //
+  // Eles JÁ são documentos do projeto — o upload aconteceu na hora em que o
+  // arquivo foi escolhido. O que esta lista guarda é a intenção de anexá-los ao
+  // PRÓXIMO turno; tirar um daqui não desfaz o upload (ver a limitação
+  // registrada no handoff).
+  const [anexos, setAnexos] = useState([]);
+  const [enviandoAnexo, setEnviandoAnexo] = useState(false);
 
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
   const inputRef = useRef(null);
+  const arquivoRef = useRef(null);
   // Guarda contra duplo envio: o estado do React chega tarde demais para
   // barrar dois cliques seguidos, ou um Enter que repete.
   const enviandoRef = useRef(false);
@@ -147,6 +159,12 @@ export default function AgentScreen() {
     enviandoRef.current = true;
     setDraft('');
 
+    // Os anexos saem da caixa de texto e passam a pertencer a ESTE turno. O
+    // servidor grava o vínculo antes de o Showrunner pensar, e a partir daí é
+    // ele que sabe o que "este documento" quer dizer.
+    const doTurno = anexos;
+    setAnexos([]);
+
     setMessages((atuais) => [...atuais, {
       id: `local_${Date.now()}`,
       role: 'user',
@@ -154,6 +172,15 @@ export default function AgentScreen() {
       createdAt: Date.now(),
       media: [],
       activity: [],
+      // A mesma forma que o servidor devolve na releitura, para que a mensagem
+      // otimista e a recarregada sejam desenhadas pelo mesmo código.
+      documents: doTurno.map((anexo) => ({
+        documentId: anexo.id,
+        filename: anexo.filename,
+        mimeType: anexo.mimeType,
+        pageCount: anexo.pageCount,
+        textLength: anexo.textLength,
+      })),
     }]);
 
     let resposta = novaResposta(`resp_${Date.now()}`);
@@ -166,6 +193,7 @@ export default function AgentScreen() {
       await streamTurn({
         threadId,
         content,
+        documentIds: doTurno.map((anexo) => anexo.id),
         signal: controlador.signal,
         onEvent: (evento) => {
           resposta = aplicarEvento(resposta, evento);
@@ -195,7 +223,53 @@ export default function AgentScreen() {
       const dados = await fetchThread({ threadId });
       if (dados) setProducao(dados.production);
     }
-  }, [threadId]);
+  }, [threadId, anexos]);
+
+  /**
+   * O arquivo escolhido vira documento do projeto na hora.
+   *
+   * Enviar agora, e não junto com a mensagem, é o que permite mostrar o nome, o
+   * tamanho e o número de páginas antes de a pessoa terminar de escrever — o
+   * servidor já leu o arquivo e já sabe. E é o que faz uma recusa ("este PDF
+   * não tem texto") chegar enquanto ela ainda pode escolher outro arquivo, em
+   * vez de derrubar o turno inteiro depois.
+   */
+  const anexar = useCallback(async (arquivo) => {
+    if (!arquivo || enviandoAnexo) return;
+
+    if (!activeProjectId || semProjeto) {
+      toast('Escolha um projeto antes de anexar um documento.', 'error');
+      return;
+    }
+
+    setEnviandoAnexo(true);
+    try {
+      const documento = await uploadDocument({ projectId: activeProjectId, file: arquivo });
+      setAnexos((atuais) => (
+        atuais.some((a) => a.id === documento.id) ? atuais : [...atuais, documento]
+      ));
+    } catch (falha) {
+      // A frase vem do servidor: ele é quem sabe se o arquivo é grande demais,
+      // se não é PDF, ou se é um PDF sem texto. Todas já são de produto.
+      toast(falha?.message || 'Não consegui anexar este arquivo.', 'error');
+    } finally {
+      setEnviandoAnexo(false);
+      // Sem isto, escolher o MESMO arquivo de novo não dispara `change`.
+      if (arquivoRef.current) arquivoRef.current.value = '';
+    }
+  }, [activeProjectId, semProjeto, enviandoAnexo, toast]);
+
+  /**
+   * Tira o anexo do próximo turno.
+   *
+   * O documento CONTINUA no projeto — ele já foi enviado, já foi lido e já
+   * está lá. O que isto desfaz é a intenção de anexá-lo a esta mensagem.
+   * Apagá-lo do projeto exigiria decidir o que fazer com um documento que outra
+   * conversa pode já ter citado, e isso não é decisão de um X num chip.
+   */
+  const removerAnexo = useCallback((documentId) => {
+    setAnexos((atuais) => atuais.filter((anexo) => anexo.id !== documentId));
+  }, []);
 
   // Ideia trazida de outra tela entra como primeira fala.
   useEffect(() => {
@@ -244,6 +318,7 @@ export default function AgentScreen() {
       // Ela some daqui porque esta é outra conversa — não porque foi cancelada.
       setProducao([]);
       setDraft('');
+      setAnexos([]);
       setErroDeAbertura(null);
       inputRef.current?.focus();
     } catch (falha) {
@@ -324,7 +399,47 @@ export default function AgentScreen() {
         </div>
 
         <footer className="border-t border-hairline p-3">
+          {/* Os documentos que vão junto com a próxima mensagem. */}
+          {anexos.length ? (
+            <ul className="mb-2 flex flex-wrap gap-1.5">
+              {anexos.map((anexo) => (
+                <li
+                  key={anexo.id}
+                  className="flex items-center gap-1.5 rounded-lg border border-hairline bg-panel-2 px-2 py-1 text-[11.5px] text-chalk"
+                >
+                  <span className="text-gold"><Icon name="documento" size={12} /></span>
+                  <span className="max-w-[220px] truncate">{anexo.filename}</span>
+                  <span className="text-mist">{descricaoDoAnexo(anexo)}</span>
+                  <button
+                    type="button"
+                    onClick={() => removerAnexo(anexo.id)}
+                    title="Não enviar este documento nesta mensagem"
+                    className="ml-0.5 text-mist transition-colors hover:text-danger"
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
           <div className="flex items-end gap-2">
+            <input
+              ref={arquivoRef}
+              type="file"
+              accept={TIPOS_ACEITOS}
+              className="hidden"
+              onChange={(event) => anexar(event.target.files?.[0])}
+            />
+            <Button
+              variant="ghost"
+              icon="documento"
+              title="Anexar um PDF ou arquivo de texto a este projeto"
+              onClick={() => arquivoRef.current?.click()}
+              disabled={carregando || Boolean(erroDeAbertura) || enviandoAnexo || semProjeto}
+            >
+              {enviandoAnexo ? 'Lendo…' : 'Anexar'}
+            </Button>
             <Textarea
               ref={inputRef}
               rows={2}
@@ -406,11 +521,29 @@ function Producao({ itens }) {
   );
 }
 
-/** Uma mensagem da conversa: texto, o que está sendo feito, e a mídia. */
+/**
+ * Como um anexo se descreve em uma linha.
+ *
+ * Páginas quando o formato tem — é o que a pessoa reconhece num PDF. Um TXT não
+ * tem páginas e mostra o tamanho do texto, que é a única grandeza honesta que
+ * ele oferece.
+ */
+function descricaoDoAnexo(anexo) {
+  if (Number(anexo?.pageCount) > 0) {
+    return `· ${anexo.pageCount} ${anexo.pageCount === 1 ? 'página' : 'páginas'}`;
+  }
+  if (Number(anexo?.textLength) > 0) {
+    return `· ${Math.max(1, Math.round(anexo.textLength / 1000))} mil caracteres`;
+  }
+  return '';
+}
+
+/** Uma mensagem da conversa: texto, o que está sendo feito, a mídia e os anexos. */
 function Message({ message, emCurso = false }) {
   const isAgent = message.role !== 'user';
   const activity = message.activity || [];
   const media = message.media || [];
+  const documents = message.documents || [];
 
   return (
     <div className={`fade-up flex gap-2.5 ${isAgent ? '' : 'flex-row-reverse'}`}>
@@ -431,6 +564,23 @@ function Message({ message, emCurso = false }) {
           >
             {message.text}
           </div>
+        ) : null}
+
+        {/* Os documentos que o usuário anexou a este turno. Sobrevivem ao
+            reload porque o vínculo está no banco, não no navegador. */}
+        {documents.length ? (
+          <ul className={`mt-1.5 flex flex-wrap gap-1.5 ${isAgent ? '' : 'justify-end'}`}>
+            {documents.map((anexo) => (
+              <li
+                key={anexo.documentId}
+                className="flex items-center gap-1.5 rounded-lg border border-hairline bg-panel-2 px-2 py-1 text-[11.5px] text-chalk"
+              >
+                <span className="text-gold"><Icon name="documento" size={12} /></span>
+                <span className="max-w-[220px] truncate">{anexo.filename}</span>
+                <span className="text-mist">{descricaoDoAnexo(anexo)}</span>
+              </li>
+            ))}
+          </ul>
         ) : null}
 
         {/* O que a produção está fazendo — em linguagem de produção. */}
@@ -512,6 +662,10 @@ function paraTela(registro) {
     createdAt: registro.createdAt,
     activity: [],
     media,
+    // Os anexos do turno voltam do servidor, como a mídia: o navegador nunca
+    // guardou o arquivo nem os bytes dele. Depois de recarregar a página, a
+    // mensagem continua mostrando o documento que a acompanhou.
+    documents: Array.isArray(registro.documents) ? registro.documents : [],
     error: null,
   };
 }

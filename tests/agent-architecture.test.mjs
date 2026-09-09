@@ -85,6 +85,11 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     'AgentRuntimePort.js',
     'adapters/EchoRuntimeAdapter.js',
     'adapters/HermesRuntimeAdapter.js',
+    // PASSO 11: o aviso ao modelo sobre os documentos anexados ao turno. É
+    // PRODUTO — a frase que ensina o modelo a interpretar "este PDF" —, e por
+    // isso mora no núcleo e não no adaptador: COMO entregá-la depende do
+    // runtime, mas O QUE ela diz não.
+    'attachments.js',
     'events.js',
     'gateway.js',
     'hermes/aliases.js',
@@ -100,6 +105,11 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     'tools/handlers/generateImage.js',
     'tools/handlers/generateVideo.js',
     'tools/handlers/getJob.js',
+    // PASSO 11: o material de referência do projeto. Estas duas NÃO alcançam
+    // generation/ nem o sistema de arquivos — o texto já está no banco desde a
+    // ingestão, e ler é uma consulta.
+    'tools/handlers/listDocuments.js',
+    'tools/handlers/readDocument.js',
     'tools/index.js',
     // PASSO 9: o acompanhamento de uma geração depois que o turno acabou. Vive
     // em tools/ porque é a continuação do que uma ferramenta começou — e

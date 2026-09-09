@@ -18,6 +18,72 @@ export const TOOLS_ISOLADAS = Object.freeze({
   showrunner: ['og_generate_image', 'og_generate_video', 'og_get_job'],
 });
 
+/** O código com que o runtime real diz "não conheço essa sessão" (`_sess_nowait`). */
+export const CODIGO_SESSAO_DESCONHECIDA = 4001;
+
+/**
+ * O ciclo de vida das sessões do runtime, imitado.
+ *
+ * ── Por que isto precisa existir ────────────────────────────────────────────
+ *
+ * O runtime real RECICLA sozinho: uma sessão cujo WebSocket criador se
+ * desconectou e que não está executando nada é recolhida depois de uma janela
+ * de carência (`ws_orphan_reap`, 20 s por padrão). Como esta integração abre um
+ * socket por RPC e o fecha em seguida, toda sessão nossa é órfã desde que nasce.
+ *
+ * Um socket falso sem memória entre instâncias não consegue representar isso —
+ * cada conexão nasceria sabendo de tudo. Este objeto é a memória que falta: ele
+ * atravessa as conexões, guarda quais identificadores estão VIVOS, e sabe a
+ * diferença entre o identificador vivo (efêmero) e o durável (o que sobrevive
+ * à reciclagem e é o que `session.resume` recebe).
+ *
+ * `reciclar()` é o `ws_orphan_reap`: os vivos somem, o durável fica.
+ * `esquecerDuravel()` é o caso mais extremo — nem o registro durável sobrou.
+ */
+export function criarSessoesFalsas({
+  bridgeSessionId = BRIDGE_SESSION_ID_FALSO,
+  primeiroVivo = SESSION_ID_FALSO,
+} = {}) {
+  const vivas = new Set();
+  let seq = 0;
+  let duravelExiste = true;
+
+  const novoVivo = () => {
+    seq += 1;
+    return seq === 1 ? primeiroVivo : `${primeiroVivo}_r${seq}`;
+  };
+
+  return {
+    bridgeSessionId,
+    get vivas() { return [...vivas]; },
+    /** Quantos identificadores VIVOS já foram entregues neste runtime falso. */
+    get emitidas() { return seq; },
+
+    conhece(sessionId) { return vivas.has(String(sessionId)); },
+
+    criar() {
+      const sessionId = novoVivo();
+      vivas.add(sessionId);
+      duravelExiste = true;
+      return { session_id: sessionId, stored_session_id: bridgeSessionId, messages: [] };
+    },
+
+    /** `session.resume`: o durável continua; o vivo é outro. */
+    reabrir(alvo) {
+      if (!duravelExiste || String(alvo) !== bridgeSessionId) return null;
+      const sessionId = novoVivo();
+      vivas.add(sessionId);
+      return { session_id: sessionId, session_key: bridgeSessionId, messages: [] };
+    },
+
+    /** O `ws_orphan_reap`: some com os vivos, preserva o durável. */
+    reciclar() { vivas.clear(); },
+
+    /** O caso extremo: nem o registro durável sobrou. */
+    esquecerDuravel() { vivas.clear(); duravelExiste = false; },
+  };
+}
+
 /**
  * Um WebSocket falso, com a mesma superfície que o cliente usa.
  *
@@ -33,6 +99,18 @@ export function criarWebSocketFalso({
   aoEnviar = null,
   recusarAbertura = false,
   cairAposRoteiro = false,
+  // Quando informado, o ciclo de vida das sessões é o de `criarSessoesFalsas`:
+  // identificadores nascem, ficam vivos, e podem ser reciclados entre conexões.
+  // Sem ele, vale o comportamento antigo — uma sessão fixa que nunca morre —,
+  // que é o que a maioria dos testes quer e não precisa saber que existe
+  // reciclagem nenhuma.
+  sessoes = null,
+  // Uma recusa arbitrária a `prompt.submit`, para exercitar o que NÃO é uma
+  // sessão reciclada. `4001` é o "400" deste protocolo e serve a mais de vinte
+  // condições distintas — reconhecê-lo sozinho como "sessão sumiu" faria o
+  // Showrunner repetir a fala do usuário contra recusas que não são sobre
+  // sessão nenhuma.
+  recusarSubmissao = null,
 } = {}) {
   return class WebSocketFalso {
     constructor(url) {
@@ -89,8 +167,20 @@ export function criarWebSocketFalso({
         this._quadro({
           jsonrpc: '2.0',
           id: pedido.id,
-          result: { session_id: sessionId, stored_session_id: bridgeSessionId, messages: [] },
+          result: sessoes
+            ? sessoes.criar()
+            : { session_id: sessionId, stored_session_id: bridgeSessionId, messages: [] },
         });
+        return;
+      }
+
+      if (pedido.method === 'session.resume') {
+        const reaberta = sessoes?.reabrir(pedido.params?.session_id);
+        this._quadro(reaberta
+          ? { jsonrpc: '2.0', id: pedido.id, result: reaberta }
+          // 4007 é o que o runtime real responde quando nem o registro durável
+          // existe mais — distinto do 4001 de "a sessão viva sumiu".
+          : { jsonrpc: '2.0', id: pedido.id, error: { code: 4007, message: 'session not found' } });
         return;
       }
 
@@ -100,6 +190,23 @@ export function criarWebSocketFalso({
       }
 
       if (pedido.method === 'prompt.submit') {
+        if (recusarSubmissao) {
+          this._quadro({ jsonrpc: '2.0', id: pedido.id, error: { ...recusarSubmissao } });
+          return;
+        }
+
+        // A sessão foi reciclada entre um turno e outro. É a resposta EXATA do
+        // runtime real (`_sess_nowait`), e é o que o adaptador precisa
+        // distinguir de "o serviço está fora do ar".
+        if (sessoes && !sessoes.conhece(pedido.params?.session_id)) {
+          this._quadro({
+            jsonrpc: '2.0',
+            id: pedido.id,
+            error: { code: CODIGO_SESSAO_DESCONHECIDA, message: 'session not found' },
+          });
+          return;
+        }
+
         this._quadro({ jsonrpc: '2.0', id: pedido.id, result: { status: 'streaming' } });
         if (tools) this._evento('session.info', { tools });
         this._evento('message.start', {});

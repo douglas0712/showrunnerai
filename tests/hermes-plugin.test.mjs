@@ -21,8 +21,24 @@ const RAIZ = path.join(process.cwd(), 'integrations', 'hermes', 'showrunner-plug
 const fonte = readFileSync(path.join(RAIZ, '__init__.py'), 'utf8');
 const manifesto = readFileSync(path.join(RAIZ, 'plugin.yaml'), 'utf8');
 
-test('o plugin declara exatamente as três tools, e nenhuma outra', () => {
-  const declaradas = [...manifesto.matchAll(/^\s*-\s*(og_\w+)\s*$/gm)].map((m) => m[1]);
+/**
+ * Comentários e docstrings fora, para que a proibição valha sobre CÓDIGO.
+ *
+ * Mesmo critério de `apenasCodigo` em agent-architecture.test.mjs: o plugin
+ * EXPLICA, em comentário, por que nenhum schema carrega `projectId` — e proibir
+ * a palavra na explicação apagaria a razão junto com o risco.
+ */
+function apenasCodigoPython(texto) {
+  return texto
+    .replace(/"{3}[\s\S]*?"{3}/g, '')
+    .split('\n').map((linha) => linha.replace(/#.*$/, '')).join('\n');
+}
+
+test('o plugin declara exatamente as tools da tabela de aliases, e nenhuma outra', () => {
+  // Qualquer entrada de `provides_tools`, com o prefixo que for: se um nome
+  // fora da tabela entrar aqui, o modelo passa a enxergá-lo. A regex antiga só
+  // via `og_*`, e uma família nova de ferramentas teria passado despercebida.
+  const declaradas = [...manifesto.matchAll(/^\s*-\s*([a-z][a-z0-9_]*)\s*$/gm)].map((m) => m[1]);
   assert.deepEqual(declaradas.sort(), [...hermesAliases()].sort());
 });
 
@@ -41,7 +57,8 @@ test('o toolset registrado é "showrunner"', () => {
 
 test('nenhum schema expõe estado do Showrunner ao modelo', () => {
   // O bloco de schemas vai do primeiro até o fim das definições.
-  const schemas = fonte.slice(fonte.indexOf('IMAGE_SCHEMA'), fonte.indexOf('_TOOLS = ('));
+  const codigo = apenasCodigoPython(fonte);
+  const schemas = codigo.slice(codigo.indexOf('IMAGE_SCHEMA'), codigo.indexOf('_TOOLS = ('));
   for (const proibido of ['projectId', 'threadId', 'sessionId', 'session_id',
     'workflowId', 'nodeId', 'filename', 'path']) {
     assert.equal(schemas.includes(proibido), false,

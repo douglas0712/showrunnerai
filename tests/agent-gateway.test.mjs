@@ -19,6 +19,7 @@ import { assertRuntimePort } from '../lib/server/agent/AgentRuntimePort.js';
 import { AGENT_EVENTS, createAgentEvent } from '../lib/server/agent/events.js';
 import { createEchoRuntime } from '../lib/server/agent/adapters/EchoRuntimeAdapter.js';
 import { listMessageRecords } from '../lib/server/agent/threads.js';
+import { publicToolList, toolRegistry } from '../lib/server/agent/tools/index.js';
 import {
   AGENT_NAME, AgentTurnError, createThread, getThread, listThreads,
   runtimeDiagnostics, sendMessage, ThreadNotFoundError,
@@ -125,17 +126,31 @@ test('13. o gateway chama o runtime, com o contrato completo', async () => {
   // que o gateway acabou de gravar, antes de o runtime começar a pensar. Um
   // adaptador que execute ferramentas por outro canal a repassa ao registro de
   // turnos; nenhum runtime a inventa.
+  //
+  // PASSO 11: `attachments` entrou. São os documentos que o usuário anexou A
+  // ESTE turno, em metadata segura — nome, tipo, páginas, tamanho e o
+  // identificador. Nunca caminho, nunca impressão digital e nunca o texto: o
+  // conteúdo é lido sob demanda pela ferramenta, não empurrado para dentro de
+  // todo turno. Sem anexo, a lista é vazia — e vazia é o caso normal.
   assert.deepEqual(argumentos.context, {
     agentName: 'Showrunner',
     threadId: thread.id,
     projectId: 'proj_sinal',
     userMessageId: turno.userMessage.id,
+    attachments: [],
   });
 
   // 24 · a coleção de tools chega vazia, provando que o argumento já existe.
   // PASSO 6: tools agora é preenchido com publicToolList()
   assert.ok(Array.isArray(argumentos.tools), 'tools deve ser um array');
-  assert.equal(argumentos.tools.length, 3, 'PASSO 6 fornece 3 ferramentas públicas');
+  // O gateway entrega ao runtime EXATAMENTE o que o registry tem — não uma
+  // seleção própria. Contar contra o registry, e não contra um número escrito
+  // aqui, é o que mantém isto verdadeiro quando uma ferramenta entra: o que
+  // este teste protege é a igualdade, não a quantidade.
+  assert.deepEqual(
+    argumentos.tools.map((t) => t.name).sort(),
+    publicToolList(toolRegistry()).map((t) => t.name).sort(),
+  );
   // Verifica que cada tool tem os campos corretos (sem execute)
   for (const tool of argumentos.tools) {
     assert.ok(tool.name, `tool deve ter name: ${JSON.stringify(tool)}`);

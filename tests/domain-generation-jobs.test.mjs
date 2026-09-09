@@ -59,11 +59,14 @@ const base = (extra = {}) => ({
 
 // ── A · B · a migração ──────────────────────────────────────────────────────
 
-test('B. um banco novo nasce no esquema 7, com a tabela e os três índices', () => {
+test('B. um banco novo nasce com a tabela do livro-razão e os três índices', () => {
   const db = openDatabase(':memory:');
 
-  assert.equal(ESQUEMA_ATUAL, 7);
-  assert.equal(schemaVersion(db), 7);
+  // A versão corrente é o que o esquema diz que é; qual número ela tem hoje é
+  // pinado em domain-documents.test.mjs, junto da migração mais nova. O que
+  // ESTE arquivo garante é que a tabela do livro-razão continua nascendo com
+  // ela, migração após migração.
+  assert.equal(schemaVersion(db), ESQUEMA_ATUAL);
 
   const objetos = db.prepare(
     "SELECT name, type FROM sqlite_master WHERE name LIKE 'generation_jobs%'",
@@ -86,7 +89,7 @@ test('C. a tabela é STRICT, como todas as outras', () => {
   db.close();
 });
 
-test('A. um banco no esquema 6 migra para o 7 sem perder nada, e sem backfill', () => {
+test('A. um banco no esquema 6 migra até o corrente sem perder nada, e sem backfill', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'showrunner-mig-'));
   const arquivo = path.join(dir, 'showrunner.db');
 
@@ -102,6 +105,12 @@ test('A. um banco no esquema 6 migra para o 7 sem perder nada, e sem backfill', 
       }, db);
       // Volta o arquivo para o esquema 6, como se o código novo nunca o tivesse
       // aberto. É esta a situação real de quem atualiza a aplicação.
+      //
+      // Toda tabela criada DEPOIS da 6 precisa sair, e na ordem em que as
+      // chaves estrangeiras permitem: quem referencia sai antes do referenciado.
+      db.exec('DROP TABLE agent_message_documents');
+      db.exec('DROP TABLE document_chunks');
+      db.exec('DROP TABLE project_documents');
       db.exec('DROP TABLE generation_jobs');
       db.exec('PRAGMA user_version = 6');
       assert.equal(schemaVersion(db), 6);
@@ -111,7 +120,7 @@ test('A. um banco no esquema 6 migra para o 7 sem perder nada, e sem backfill', 
 
     const db = openDatabase(arquivo);
 
-    assert.equal(schemaVersion(db), 7);
+    assert.equal(schemaVersion(db), ESQUEMA_ATUAL);
     // Tudo o que existia continua existindo.
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM projects').get().n, 1);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM agent_threads').get().n, 1);
@@ -127,7 +136,7 @@ test('A. um banco no esquema 6 migra para o 7 sem perder nada, e sem backfill', 
   }
 });
 
-test('X. reabrir um banco já no esquema 7 não recria nada nem perde dados', () => {
+test('X. reabrir um banco já no esquema corrente não recria nada nem perde dados', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'showrunner-mig7-'));
   const arquivo = path.join(dir, 'showrunner.db');
 
@@ -140,7 +149,7 @@ test('X. reabrir um banco já no esquema 7 não recria nada nem perde dados', ()
     }
 
     const db = openDatabase(arquivo);
-    assert.equal(schemaVersion(db), 7);
+    assert.equal(schemaVersion(db), ESQUEMA_ATUAL);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM generation_jobs').get().n, 1);
     assert.ok(getGenerationJobRecord('cinema_abc_001', db));
     // E os índices continuam sendo três — nenhuma duplicata.

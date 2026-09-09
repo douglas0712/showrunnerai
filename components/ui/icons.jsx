@@ -160,6 +160,15 @@ export const Icons = {
       <path d="m6 10 6 6 6-6" />
     </Svg>
   ),
+  // Uma folha com o canto dobrado. É o material de referência que entra no
+  // projeto — PDF ou texto —, e não a mídia que a produção gera.
+  documento: (p) => (
+    <Svg {...p}>
+      <path d="M13.5 3.5H7.2A1.7 1.7 0 0 0 5.5 5.2v13.6a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7V8.5z" />
+      <path d="M13.5 3.5v5h5" />
+      <path d="M8.8 13h6.4M8.8 16.4h4.4" />
+    </Svg>
+  ),
   upload: (p) => (
     <Svg {...p}>
       <path d="M12 20V8.5" />

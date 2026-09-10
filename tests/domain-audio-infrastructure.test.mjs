@@ -169,6 +169,11 @@ function bancoNoEsquema11(caminho) {
   rebobina.exec('PRAGMA foreign_keys = OFF');
   rebobina.exec(`
     BEGIN;
+    -- PASSO 14-D1A: o desenho de som nasceu depois do 11 e sai junto, para
+    -- que a reexecução das migrações não esbarre numa tabela já existente.
+    DROP TABLE production_scene_sfx_selections;
+    DROP TABLE production_scene_sfx_takes;
+    DROP TABLE production_scene_sfx_cues;
     CREATE TABLE assets_11 (
       id TEXT PRIMARY KEY,
       projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -289,7 +294,7 @@ test('B. o rebuild não disparou SET NULL nem CASCADE em nenhum filho', () => {
   const antes = bancoNoEsquema11(caminho);
 
   const db = openDatabase(caminho);
-  assert.equal(schemaVersion(db), 12);
+  assert.equal(schemaVersion(db), ESQUEMA_ATUAL);
   const depois = retrato(db);
 
   // É este assert que o defeito original teria quebrado: com a checagem ligada,
@@ -344,7 +349,7 @@ test('E · F · G · D. o lote que deixa um órfão é RECUSADO antes do COMMIT'
   const db = openDatabase(caminho);
 
   // F. a versão não avançou: o lote inteiro voltou atrás, e não meia migração.
-  assert.equal(schemaVersion(db), 12);
+  assert.equal(schemaVersion(db), ESQUEMA_ATUAL);
 
   // G. e os dados continuam exatamente como estavam — inclusive sem a órfã.
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM assets WHERE id = 'a_orfa'").get().n, 0);
@@ -374,7 +379,7 @@ test('D2. a migração que EXPLODE também religa a checagem, sem gravar nada', 
   assert.throws(() => openDatabase(caminho, comDefeito), /migração defeituosa/);
 
   const db = openDatabase(caminho);
-  assert.equal(schemaVersion(db), 12);
+  assert.equal(schemaVersion(db), ESQUEMA_ATUAL);
   assert.deepEqual(retrato(db), antes);
   assert.equal(Number(db.prepare('PRAGMA foreign_keys').get().foreign_keys), 1);
   db.close();
@@ -384,14 +389,14 @@ test('D2. a migração que EXPLODE também religa a checagem, sem gravar nada', 
 
 test('G · H. fresh chega a 12, e 11 → 12 também', () => {
   const fresco = openDatabase(caminhoNovo('fresco'));
-  assert.equal(schemaVersion(fresco), 12);
-  assert.equal(ESQUEMA_ATUAL, 12);
+  assert.equal(schemaVersion(fresco), ESQUEMA_ATUAL);
+  assert.ok(ESQUEMA_ATUAL >= 12, 'a migração 12 precisa continuar existindo');
   fresco.close();
 
   const caminho = caminhoNovo('migrado');
   bancoNoEsquema11(caminho);
   const migrado = openDatabase(caminho);
-  assert.equal(schemaVersion(migrado), 12);
+  assert.equal(schemaVersion(migrado), ESQUEMA_ATUAL);
   migrado.close();
 });
 

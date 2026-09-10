@@ -43,6 +43,10 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
     // por tentativa, e não uma coluna na cena, para que regenerar acrescente em
     // vez de sobrescrever.
     'production_scene_media', 'production_scene_media_selections',
+    // PASSO 14-D1A: o desenho de som. Uma cena tem N CUES, cada uma com os seus
+    // takes e a sua escolha — cardinalidade que a tabela da voz não comporta.
+    'production_scene_sfx_cues', 'production_scene_sfx_selections',
+    'production_scene_sfx_takes',
     'production_scenes',
     'production_scripts',
     // PASSO 11: o material de referência do projeto.
@@ -73,9 +77,13 @@ test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () =
   antigo.exec(
     // PASSO 12: o planejamento sai primeiro de todos — as cenas dependem do
     // roteiro, o roteiro do projeto, e as fontes do plano E do documento.
+    // PASSO 14-D1A: o desenho de som sai primeiro — cues, takes e escolhas.
+    'DROP TABLE production_scene_sfx_selections; '
+    + 'DROP TABLE production_scene_sfx_takes; '
+    + 'DROP TABLE production_scene_sfx_cues; '
     // PASSO 14-B: a voz da cena sai antes da cena, do Asset e do livro-razão —
     // ela referencia os três.
-    'DROP TABLE production_scene_audio_selections; '
+    + 'DROP TABLE production_scene_audio_selections; '
     + 'DROP TABLE production_scene_audio_takes; '
     + 'DROP TABLE production_scene_media_selections; '
     + 'DROP TABLE production_scene_media; '

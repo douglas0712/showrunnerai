@@ -112,6 +112,10 @@ test('A. um banco no esquema 6 migra até o corrente sem perder nada, e sem back
       // e as fontes do plano dependem de `project_documents`.
       // PASSO 13-A: a mídia da cena sai primeiro — ela referencia a cena, o
       // Asset e o próprio generation_jobs.
+      // PASSO 14-D1A: o desenho de som referencia os mesmos três, e sai junto.
+      db.exec('DROP TABLE production_scene_sfx_selections');
+      db.exec('DROP TABLE production_scene_sfx_takes');
+      db.exec('DROP TABLE production_scene_sfx_cues');
       // PASSO 14-B: a voz da cena referencia os mesmos três, e sai junto.
       db.exec('DROP TABLE production_scene_audio_selections');
       db.exec('DROP TABLE production_scene_audio_takes');

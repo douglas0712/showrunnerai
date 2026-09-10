@@ -650,19 +650,33 @@ test('X. fresh 12 e 11 → 12 são semanticamente equivalentes', () => {
 
 // ── Y · Z · ausências ──────────────────────────────────────────────────────
 
-test('Y. nenhum executor de áudio existe — e `audio` não cai no de imagem/vídeo', async () => {
-  // Não há descriptor de áudio. Como o executor resolve o tipo pelo DESCRIPTOR
-  // (`descriptorForJob(job).kind`), e não pela linha do job, um `kind='audio'`
-  // no banco não tem por onde ser despachado.
-  const kinds = [...new Set(listWorkflows().map((w) => w.kind))].sort();
-  assert.deepEqual(kinds, ['image', 'video']);
-  assert.equal(listWorkflows().some((w) => w.kind === 'audio'), false);
+test('Y. `audio` tem executor próprio, e nunca cai no de imagem/vídeo', async () => {
+  // Este teste afirmava que NÃO havia executor de áudio, e previa a própria
+  // queda: o PASSO 14-D1B trouxe o Stable Audio Open, com descriptor próprio.
+  // O que ele tranca agora é a metade que continua valendo — que o áudio tem
+  // caminho SEPARADO, e não um desvio dentro do de imagem ou vídeo.
+  const porKind = {};
+  for (const w of listWorkflows()) porKind[w.kind] = (porKind[w.kind] || 0) + 1;
+  assert.equal(porKind.audio, 1, 'exatamente um executor de áudio');
+  assert.ok(porKind.image >= 1 && porKind.video >= 1);
 
-  // E a validação de mídia falha FECHADA: `audio` não cai no ramo de imagem nem
-  // no de vídeo, ele simplesmente não tem validação.
+  // O executor resolve o tipo pelo DESCRIPTOR, e não pela linha do job: o
+  // workflow de áudio declara `audio`, e nenhum de imagem/vídeo o declara.
+  const deAudio = listWorkflows().filter((w) => w.kind === 'audio');
+  assert.equal(deAudio[0].id, 'stable_audio_sfx');
+  assert.equal(listWorkflows().some((w) => w.kind === 'audio' && /image|video/.test(w.id)), false);
+
+  // E a validação de mídia de áudio é a de ÁUDIO — não a de imagem nem a de
+  // vídeo. Um arquivo que não existe falha por não abrir, e não por cair no
+  // ramo errado.
   const resultado = await validarMidia('audio', '/caminho/que/nao/existe');
   assert.equal(resultado.ok, false);
-  assert.match(resultado.motivo, /sem validação/);
+  assert.match(resultado.motivo, /ffprobe falhou/);
+
+  // Um tipo que a aplicação não conhece continua falhando FECHADO.
+  const desconhecido = await validarMidia('texto', '/caminho/que/nao/existe');
+  assert.equal(desconhecido.ok, false);
+  assert.match(desconhecido.motivo, /sem validação/);
 });
 
 test('Z. nenhuma ferramenta, provider ou geração de áudio nasceu', () => {

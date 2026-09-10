@@ -1,0 +1,51 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": { "title": "Stable Audio Open 1.0" },
+    "inputs": { "ckpt_name": "stable_audio_open_1.0.safetensors" }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": { "title": "T5 base (stable_audio)" },
+    "inputs": { "clip_name": "t5_base.safetensors", "type": "stable_audio" }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "positive" },
+    "inputs": { "text": "heavy metal door slamming shut, single impact, indoor warehouse, no speech, no music", "clip": ["2", 0] }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "negative" },
+    "inputs": { "text": "speech, voice, dialogue, music, melody", "clip": ["2", 0] }
+  },
+  "5": {
+    "class_type": "EmptyLatentAudio",
+    "_meta": { "title": "duração" },
+    "inputs": { "seconds": 5.0, "batch_size": 1 }
+  },
+  "6": {
+    "class_type": "ConditioningStableAudio",
+    "_meta": { "title": "janela temporal" },
+    "inputs": { "positive": ["3", 0], "negative": ["4", 0], "seconds_start": 0.0, "seconds_total": 5.0 }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "_meta": { "title": "sampler" },
+    "inputs": {
+      "model": ["1", 0], "seed": 12345, "steps": 50, "cfg": 7.0,
+      "sampler_name": "dpmpp_3m_sde_gpu", "scheduler": "exponential",
+      "positive": ["6", 0], "negative": ["6", 1], "latent_image": ["5", 0], "denoise": 1.0
+    }
+  },
+  "8": {
+    "class_type": "VAEDecodeAudio",
+    "_meta": { "title": "decode" },
+    "inputs": { "samples": ["7", 0], "vae": ["1", 2] }
+  },
+  "9": {
+    "class_type": "SaveAudio",
+    "_meta": { "title": "saída" },
+    "inputs": { "audio": ["8", 0], "filename_prefix": "sfx/showrunner_sfx" }
+  }
+}

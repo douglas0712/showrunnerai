@@ -644,9 +644,11 @@ test('AA+AB. o repositório não conhece executor, runtime nem agente', async ()
   // PASSO 14-C2: `sceneAudio.js` entra pelo MESMO motivo, e é a prova de que a
   // voz não ganhou um segundo caminho de conclusão — ela chega pelo que já
   // existia. Continua sendo tudo domínio.
+  // PASSO 14-D1B: `sceneSfx.js` entra pelo MESMO motivo — o efeito sonoro chega
+  // pelo ponto de conclusão que já existia, e não por um segundo caminho.
   assert.deepEqual(importados, [
     './db.js', './generationJobStates.js', './projects.js', './sceneAudio.js',
-    './sceneMedia.js',
+    './sceneMedia.js', './sceneSfx.js',
   ]);
 });
 

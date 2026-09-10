@@ -428,7 +428,9 @@ test('nenhuma Agent Tool de música, e nenhuma Timeline', () => {
   const publicadas = publicToolList(toolRegistry()).map((t) => t.name);
   for (const nome of publicadas) {
     assert.equal(
-      /music|musica|trilha|score|soundtrack|timeline|mix|ducking/i.test(nome),
+      /music|musica|trilha|score|soundtrack|timeline|mix|ducking/i.test(nome)
+      // PASSO 14-E: as tools `project.*` de música passaram a existir.
+      && !nome.startsWith('project.'),
       false,
       `ferramenta criada cedo demais: ${nome}`,
     );

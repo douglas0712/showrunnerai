@@ -731,7 +731,7 @@ test('ausência 1. nenhuma ferramenta de áudio, voz ou TTS foi publicada', () =
   for (const nome of publicadas) {
     assert.equal(
       /audio|voice|voz|tts|speech|narration|narracao|music|sfx|dialogue|foley|ambient/i
-        .test(nome),
+        .test(nome) && !nome.startsWith('project.'),
       false,
       `ferramenta de áudio criada cedo demais: ${nome}`,
     );

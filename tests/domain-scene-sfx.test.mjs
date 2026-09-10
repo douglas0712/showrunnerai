@@ -645,7 +645,8 @@ test('ausência. nenhuma Agent Tool de efeito, música ou diálogo', () => {
   const publicadas = publicToolList(toolRegistry()).map((t) => t.name);
   for (const nome of publicadas) {
     assert.equal(
-      /sfx|efeito|sound|music|musica|dialogue|dialogo|foley|ambient|timeline|mix/i.test(nome),
+      /sfx|efeito|sound|music|musica|dialogue|dialogo|foley|ambient|timeline|mix/i.test(nome)
+      && !nome.startsWith('project.'),
       false,
       `ferramenta criada cedo demais: ${nome}`,
     );

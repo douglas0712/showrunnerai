@@ -461,6 +461,492 @@ SELECT_SCENE_TAKE_SCHEMA = {
 
 # A allowlist do plugin — a segunda das quatro barreiras. O nome pedido tem de
 # estar aqui para sequer virar uma mensagem no socket.
+
+
+# ── PASSO 14-E — o som da produção ──────────────────────────────────────────
+#
+# Três famílias, e as três com formas diferentes porque as cardinalidades são
+# diferentes: a narração é uma por cena, o efeito é vários por cena, e a música
+# é vários por PRODUÇÃO — por isso as tools de música não pedem número de cena.
+#
+# As descrições são as mesmas do registry do Showrunner, e é de propósito: o
+# modelo lê uma superfície só, e duas redações divergiriam na primeira edição.
+
+GET_SCENE_NARRATION_SCHEMA = {
+    "name": "project_get_scene_narration",
+    "description": (
+        "Mostra o texto de narração de uma cena desta produção — o que será falado em voz alta. "
+        "Consulte antes de responder \"o que a cena 3 narra?\" ou antes de reescrever: o que vale "
+        "é o texto gravado, não o que foi dito na conversa. Uma cena pode legitimamente não ter "
+        "narração; isso não é defeito. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                }
+        },
+        "required": [
+                "ordinal"
+        ]
+},
+}
+
+SET_SCENE_NARRATION_SCHEMA = {
+    "name": "project_set_scene_narration",
+    "description": (
+        "Escreve ou reescreve o texto de narração de uma cena desta produção. É planejamento: "
+        "escrever NÃO grava voz nenhuma — para isso use project.generate_scene_narration. Atenção "
+        "ao reescrever: as vozes já gravadas continuam existindo, mas passam a ser de uma versão "
+        "anterior do texto, e a listagem vai mostrá-las como não atuais. Texto vazio é aceito: "
+        "uma cena pode ser só imagem ou silêncio. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                },
+                "text": {
+                        "type": "string",
+                        "description": "O texto que será falado. Use string vazia para deixar a cena sem narração."
+                }
+        },
+        "required": [
+                "ordinal",
+                "text"
+        ]
+},
+}
+
+GENERATE_SCENE_NARRATION_SCHEMA = {
+    "name": "project_generate_scene_narration",
+    "description": (
+        "Grava a voz da narração de uma cena desta produção, a partir do texto que já está "
+        "escrito nela. Atende \"gere a narração da cena 3\". Chamar de novo na mesma cena cria "
+        "uma NOVA tentativa (take) — é assim que se atende \"faça outra versão\"; não existe "
+        "comando separado para regerar. A gravação começa e o trabalho segue em segundo plano; "
+        "use project.list_scene_narration_takes para saber como ficou. Se ainda não houver "
+        "seleção, a primeira voz pronta do texto atual passa a valer sozinha; se já houver uma "
+        "escolhida e ela ainda for do texto atual, ela é mantida. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                }
+        },
+        "required": [
+                "ordinal"
+        ]
+},
+}
+
+LIST_SCENE_NARRATION_TAKES_SCHEMA = {
+    "name": "project_list_scene_narration_takes",
+    "description": (
+        "Lista as vozes já gravadas para a narração de uma cena desta produção: o número de cada "
+        "tentativa (take), a situação, qual está escolhida e se ainda corresponde ao texto atual "
+        "da cena. Consulte SEMPRE antes de agir sobre \"a segunda\", \"a outra\" ou \"essa voz\", "
+        "e antes de responder qualquer pergunta sobre o que já existe. Um take com selected "
+        "verdadeiro e current falso significa que a voz escolhida foi gravada antes da última "
+        "alteração do texto. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                }
+        },
+        "required": [
+                "ordinal"
+        ]
+},
+}
+
+SELECT_SCENE_NARRATION_TAKE_SCHEMA = {
+    "name": "project_select_scene_narration_take",
+    "description": (
+        "Escolhe qual voz gravada passa a valer para a narração de uma cena desta produção. É o "
+        "que atende \"use a segunda\", \"prefiro a primeira\", \"fica com essa\". Escolher NÃO "
+        "apaga nada e NÃO grava nada: só move o ponteiro, e dá para voltar. Use o número que "
+        "aparece em project.list_scene_narration_takes. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                },
+                "takeNumber": {
+                        "type": "integer",
+                        "description": "O número da tentativa (take), como aparece na listagem. Começa em 1."
+                }
+        },
+        "required": [
+                "ordinal",
+                "takeNumber"
+        ]
+},
+}
+
+CREATE_SCENE_SFX_CUE_SCHEMA = {
+    "name": "project_create_scene_sfx_cue",
+    "description": (
+        "Acrescenta um efeito sonoro a uma cena desta produção — o que se ouve, escrito em "
+        "palavras. Atende \"adicione um trovão na cena 4\". Isto é planejamento: NÃO gera som "
+        "nenhum. Para gerar, use project.generate_scene_sfx depois. Uma cena pode ter vários "
+        "efeitos ao mesmo tempo, e cada um recebe um número. O número é do estúdio, não seu. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                },
+                "description": {
+                        "type": "string",
+                        "description": "O que se ouve, em palavras — por exemplo \"porta metálica pesada fechando com impacto\" ou \"trovão distante durante uma tempestade\". É deste texto que o som vai nascer."
+                }
+        },
+        "required": [
+                "ordinal",
+                "description"
+        ]
+},
+}
+
+UPDATE_SCENE_SFX_CUE_SCHEMA = {
+    "name": "project_update_scene_sfx_cue",
+    "description": (
+        "Reescreve a descrição de um efeito sonoro de uma cena desta produção. Os sons já gerados "
+        "continuam existindo, mas passam a ser de uma versão anterior da descrição, e a listagem "
+        "vai mostrá-los como não atuais. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                },
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número do efeito dentro da cena, como aparece na listagem. Começa em 1."
+                },
+                "description": {
+                        "type": "string",
+                        "description": "O que se ouve, em palavras — por exemplo \"porta metálica pesada fechando com impacto\" ou \"trovão distante durante uma tempestade\". É deste texto que o som vai nascer."
+                }
+        },
+        "required": [
+                "ordinal",
+                "cueNumber",
+                "description"
+        ]
+},
+}
+
+LIST_SCENE_SFX_CUES_SCHEMA = {
+    "name": "project_list_scene_sfx_cues",
+    "description": (
+        "Lista os efeitos sonoros de uma cena desta produção: o número de cada um, a descrição, "
+        "quantas tentativas já existem e se há uma escolhida. Consulte SEMPRE antes de agir sobre "
+        "\"esse efeito\", \"o trovão\" ou \"o segundo\". "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                }
+        },
+        "required": [
+                "ordinal"
+        ]
+},
+}
+
+DELETE_SCENE_SFX_CUE_SCHEMA = {
+    "name": "project_delete_scene_sfx_cue",
+    "description": (
+        "Remove um efeito sonoro de uma cena desta produção, junto com as tentativas dele. Não dá "
+        "para desfazer. Se houver uma geração em andamento para esse efeito, a remoção é recusada "
+        "— espere ela terminar. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                },
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número do efeito dentro da cena, como aparece na listagem. Começa em 1."
+                }
+        },
+        "required": [
+                "ordinal",
+                "cueNumber"
+        ]
+},
+}
+
+GENERATE_SCENE_SFX_SCHEMA = {
+    "name": "project_generate_scene_sfx",
+    "description": (
+        "Gera o som de um efeito de uma cena desta produção, a partir da descrição já escrita "
+        "nele. Atende \"gere esse efeito\". Chamar de novo no mesmo efeito cria uma NOVA "
+        "tentativa (take) — é assim que se atende \"faça outra versão\"; não existe comando "
+        "separado para regerar. A geração começa e segue em segundo plano; use "
+        "project.list_scene_sfx_takes para saber como ficou. Se ainda não houver seleção, o "
+        "primeiro som pronto da descrição atual passa a valer sozinho; se já houver um escolhido "
+        "e ele ainda for da descrição atual, ele é mantido. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                },
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número do efeito dentro da cena, como aparece na listagem. Começa em 1."
+                }
+        },
+        "required": [
+                "ordinal",
+                "cueNumber"
+        ]
+},
+}
+
+LIST_SCENE_SFX_TAKES_SCHEMA = {
+    "name": "project_list_scene_sfx_takes",
+    "description": (
+        "Lista os sons já gerados para um efeito de uma cena desta produção: o número de cada "
+        "tentativa, a situação, qual está escolhida e se ainda corresponde à descrição atual do "
+        "efeito. Um take com selected verdadeiro e current falso significa que o som escolhido "
+        "foi gerado antes da última alteração da descrição. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                },
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número do efeito dentro da cena, como aparece na listagem. Começa em 1."
+                }
+        },
+        "required": [
+                "ordinal",
+                "cueNumber"
+        ]
+},
+}
+
+SELECT_SCENE_SFX_TAKE_SCHEMA = {
+    "name": "project_select_scene_sfx_take",
+    "description": (
+        "Escolhe qual som gerado passa a valer para um efeito de uma cena desta produção. É o que "
+        "atende \"use o segundo\", \"prefiro o primeiro\". Escolher NÃO apaga nada e NÃO gera "
+        "nada: só move o ponteiro, e dá para voltar. Cada efeito tem a sua própria escolha — "
+        "escolher o trovão não mexe nos passos. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "ordinal": {
+                        "type": "integer",
+                        "description": "O número da cena na produção, começando em 1."
+                },
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número do efeito dentro da cena, como aparece na listagem. Começa em 1."
+                },
+                "takeNumber": {
+                        "type": "integer",
+                        "description": "O número da tentativa (take), como aparece na listagem. Começa em 1."
+                }
+        },
+        "required": [
+                "ordinal",
+                "cueNumber",
+                "takeNumber"
+        ]
+},
+}
+
+CREATE_MUSIC_CUE_SCHEMA = {
+    "name": "project_create_music_cue",
+    "description": (
+        "Acrescenta uma peça musical a esta produção — como a trilha soa, escrita em palavras. "
+        "Atende \"crie uma trilha sombria para o filme\". A música pertence à PRODUÇÃO, e não a "
+        "uma cena: uma peça pode atravessar várias cenas, e por isso esta ferramenta não pede "
+        "número de cena. Isto é planejamento: NÃO gera música nenhuma. Para gerar, use "
+        "project.generate_music depois. O número da peça é do estúdio, não seu. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "description": {
+                        "type": "string",
+                        "description": "Como a peça soa, em palavras — por exemplo \"trilha orquestral sombria, tensão crescendo devagar, cordas graves\" ou \"piano melancólico e esparso\". É deste texto que a música vai nascer."
+                }
+        },
+        "required": [
+                "description"
+        ]
+},
+}
+
+UPDATE_MUSIC_CUE_SCHEMA = {
+    "name": "project_update_music_cue",
+    "description": (
+        "Reescreve a descrição de uma peça musical desta produção. As músicas já geradas "
+        "continuam existindo, mas passam a ser de uma versão anterior da descrição, e a listagem "
+        "vai mostrá-las como não atuais. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número da peça musical nesta produção, como aparece na listagem. Começa em 1."
+                },
+                "description": {
+                        "type": "string",
+                        "description": "Como a peça soa, em palavras — por exemplo \"trilha orquestral sombria, tensão crescendo devagar, cordas graves\" ou \"piano melancólico e esparso\". É deste texto que a música vai nascer."
+                }
+        },
+        "required": [
+                "cueNumber",
+                "description"
+        ]
+},
+}
+
+LIST_MUSIC_CUES_SCHEMA = {
+    "name": "project_list_music_cues",
+    "description": (
+        "Lista as peças musicais desta produção: o número de cada uma, a descrição, quantas "
+        "tentativas já existem e se há uma escolhida. Consulte SEMPRE antes de agir sobre \"a "
+        "trilha\", \"essa música\" ou \"a segunda\". "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {}
+},
+}
+
+DELETE_MUSIC_CUE_SCHEMA = {
+    "name": "project_delete_music_cue",
+    "description": (
+        "Remove uma peça musical desta produção, junto com as tentativas dela. Não dá para "
+        "desfazer. Se houver uma geração em andamento para essa peça, a remoção é recusada — "
+        "espere ela terminar. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número da peça musical nesta produção, como aparece na listagem. Começa em 1."
+                }
+        },
+        "required": [
+                "cueNumber"
+        ]
+},
+}
+
+GENERATE_MUSIC_SCHEMA = {
+    "name": "project_generate_music",
+    "description": (
+        "Gera a música de uma peça desta produção, a partir da descrição já escrita nela. Atende "
+        "\"gere a trilha\". Chamar de novo na mesma peça cria uma NOVA tentativa (take) — é assim "
+        "que se atende \"faça outra versão\"; não existe comando separado para regerar. A geração "
+        "começa e segue em segundo plano; use project.list_music_takes para saber como ficou. Se "
+        "ainda não houver seleção, a primeira música pronta da descrição atual passa a valer "
+        "sozinha; se já houver uma escolhida e ela ainda for da descrição atual, ela é mantida. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número da peça musical nesta produção, como aparece na listagem. Começa em 1."
+                }
+        },
+        "required": [
+                "cueNumber"
+        ]
+},
+}
+
+LIST_MUSIC_TAKES_SCHEMA = {
+    "name": "project_list_music_takes",
+    "description": (
+        "Lista as músicas já geradas para uma peça desta produção: o número de cada tentativa, a "
+        "situação, qual está escolhida e se ainda corresponde à descrição atual da peça. Um take "
+        "com selected verdadeiro e current falso significa que a música escolhida foi gerada "
+        "antes da última alteração da descrição. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número da peça musical nesta produção, como aparece na listagem. Começa em 1."
+                }
+        },
+        "required": [
+                "cueNumber"
+        ]
+},
+}
+
+SELECT_MUSIC_TAKE_SCHEMA = {
+    "name": "project_select_music_take",
+    "description": (
+        "Escolhe qual música gerada passa a valer para uma peça desta produção. É o que atende "
+        "\"use a segunda\", \"prefiro a primeira\". Escolher NÃO apaga nada e NÃO gera nada: só "
+        "move o ponteiro, e dá para voltar. Cada peça tem a sua própria escolha. "
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+                "cueNumber": {
+                        "type": "integer",
+                        "description": "O número da peça musical nesta produção, como aparece na listagem. Começa em 1."
+                },
+                "takeNumber": {
+                        "type": "integer",
+                        "description": "O número da tentativa (take), como aparece na listagem. Começa em 1."
+                }
+        },
+        "required": [
+                "cueNumber",
+                "takeNumber"
+        ]
+},
+}
+
 _TOOLS = (
     ("og_generate_image", IMAGE_SCHEMA),
     ("og_generate_video", VIDEO_SCHEMA),
@@ -479,6 +965,25 @@ _TOOLS = (
     ("project_generate_scene_video", GENERATE_SCENE_VIDEO_SCHEMA),
     ("project_get_scene_media", GET_SCENE_MEDIA_SCHEMA),
     ("project_select_scene_take", SELECT_SCENE_TAKE_SCHEMA),
+    ("project_get_scene_narration", GET_SCENE_NARRATION_SCHEMA),
+    ("project_set_scene_narration", SET_SCENE_NARRATION_SCHEMA),
+    ("project_generate_scene_narration", GENERATE_SCENE_NARRATION_SCHEMA),
+    ("project_list_scene_narration_takes", LIST_SCENE_NARRATION_TAKES_SCHEMA),
+    ("project_select_scene_narration_take", SELECT_SCENE_NARRATION_TAKE_SCHEMA),
+    ("project_create_scene_sfx_cue", CREATE_SCENE_SFX_CUE_SCHEMA),
+    ("project_update_scene_sfx_cue", UPDATE_SCENE_SFX_CUE_SCHEMA),
+    ("project_list_scene_sfx_cues", LIST_SCENE_SFX_CUES_SCHEMA),
+    ("project_delete_scene_sfx_cue", DELETE_SCENE_SFX_CUE_SCHEMA),
+    ("project_generate_scene_sfx", GENERATE_SCENE_SFX_SCHEMA),
+    ("project_list_scene_sfx_takes", LIST_SCENE_SFX_TAKES_SCHEMA),
+    ("project_select_scene_sfx_take", SELECT_SCENE_SFX_TAKE_SCHEMA),
+    ("project_create_music_cue", CREATE_MUSIC_CUE_SCHEMA),
+    ("project_update_music_cue", UPDATE_MUSIC_CUE_SCHEMA),
+    ("project_list_music_cues", LIST_MUSIC_CUES_SCHEMA),
+    ("project_delete_music_cue", DELETE_MUSIC_CUE_SCHEMA),
+    ("project_generate_music", GENERATE_MUSIC_SCHEMA),
+    ("project_list_music_takes", LIST_MUSIC_TAKES_SCHEMA),
+    ("project_select_music_take", SELECT_MUSIC_TAKE_SCHEMA),
 )
 _ALLOWLIST = frozenset(name for name, _ in _TOOLS)
 

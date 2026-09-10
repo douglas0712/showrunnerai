@@ -598,11 +598,18 @@ test('Z. nenhuma Agent Tool, nenhum Hermes, nenhum TTS no teste', () => {
   const publicadas = publicToolList(toolRegistry()).map((t) => t.name);
   for (const nome of publicadas) {
     assert.equal(
-      /audio|voice|voz|tts|speech|narration|narracao|music|sfx|dialogue/i.test(nome),
+      /audio|voice|voz|tts|speech|narration|narracao|music|sfx|dialogue/i.test(nome)
+      // PASSO 14-E: as tools `project.*` de áudio passaram a existir.
+      && !nome.startsWith('project.'),
       false,
       `ferramenta de áudio criada cedo demais: ${nome}`,
     );
   }
-  assert.equal(publicadas.includes('project.generate_scene_narration'), false);
+  // O PASSO 14-E criou a ferramenta de narração — e este teste previa a própria
+  // queda. O que ele tranca agora é que a superfície continua sendo de PRODUÇÃO:
+  // uma ferramenta genérica de áudio misturaria as três cardinalidades num
+  // parâmetro, que é justamente o que as famílias separadas evitam.
+  assert.equal(publicadas.includes('project.generate_scene_narration'), true);
   assert.equal(publicadas.includes('project.generate_scene_audio'), false);
+  assert.equal(publicadas.includes('audio.generate'), false);
 });

@@ -26,3 +26,22 @@ provides_tools:
   - project_generate_scene_video
   - project_get_scene_media
   - project_select_scene_take
+  - project_get_scene_narration
+  - project_set_scene_narration
+  - project_generate_scene_narration
+  - project_list_scene_narration_takes
+  - project_select_scene_narration_take
+  - project_create_scene_sfx_cue
+  - project_update_scene_sfx_cue
+  - project_list_scene_sfx_cues
+  - project_delete_scene_sfx_cue
+  - project_generate_scene_sfx
+  - project_list_scene_sfx_takes
+  - project_select_scene_sfx_take
+  - project_create_music_cue
+  - project_update_music_cue
+  - project_list_music_cues
+  - project_delete_music_cue
+  - project_generate_music
+  - project_list_music_takes
+  - project_select_music_take

@@ -19,27 +19,39 @@ test('Gateway fornece apenas definições públicas das tools', () => {
     'og.generate_image',
     'og.generate_video',
     'og.get_job',
-    // PASSO 13-B: a imagem DE UMA CENA. Distinta de og.generate_image, que
-    // gera para a conversa e não ocupa lugar nenhum na produção.
+    'project.create_music_cue',
+    'project.create_scene_sfx_cue',
+    'project.delete_music_cue',
+    'project.delete_scene_sfx_cue',
+    'project.generate_music',
     'project.generate_scene_image',
-    // PASSO 13-C: animar a imagem ESCOLHIDA da cena. Distinta de
-    // og.generate_video, que recebe do modelo qual imagem animar.
+    'project.generate_scene_narration',
+    'project.generate_scene_sfx',
     'project.generate_scene_video',
-    // PASSO 12: o planejamento da produção — plano, roteiro e cenas.
     'project.get_production_plan',
     'project.get_scene',
-    // PASSO 13-D: o estado real da mídia de uma cena, e a escolha do take.
     'project.get_scene_media',
+    'project.get_scene_narration',
     'project.get_script',
-    // PASSO 11: o material de referência do projeto.
     'project.list_documents',
+    'project.list_music_cues',
+    'project.list_music_takes',
+    'project.list_scene_narration_takes',
+    'project.list_scene_sfx_cues',
+    'project.list_scene_sfx_takes',
     'project.list_scenes',
     'project.read_document',
     'project.replace_scenes',
     'project.save_production_plan',
     'project.save_script',
+    'project.select_music_take',
+    'project.select_scene_narration_take',
+    'project.select_scene_sfx_take',
     'project.select_scene_take',
+    'project.set_scene_narration',
+    'project.update_music_cue',
     'project.update_scene',
+    'project.update_scene_sfx_cue',
   ]);
 
   // Nenhuma tool tem execute() exposta

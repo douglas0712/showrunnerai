@@ -316,7 +316,7 @@ test('K. nenhuma ferramenta nova — a narração se edita por update_scene', ()
   const publicadas = publicToolList(toolRegistry()).map((t) => t.name);
 
   for (const nome of publicadas) {
-    assert.equal(/narration|narracao|audio|voice|tts|speech/i.test(nome), false,
+    assert.equal(/narration|narracao|audio|voice|tts|speech/i.test(nome) && !nome.startsWith('project.'), false,
       `ferramenta de áudio/narração criada cedo demais: ${nome}`);
   }
 

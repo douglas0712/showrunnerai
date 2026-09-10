@@ -554,7 +554,8 @@ test('ausência. nenhuma Agent Tool de música, e nenhum provider', () => {
   const publicadas = publicToolList(toolRegistry()).map((t) => t.name);
   for (const nome of publicadas) {
     assert.equal(
-      /music|musica|trilha|score|soundtrack|ace.?step|timeline/i.test(nome),
+      /music|musica|trilha|score|soundtrack|ace.?step|timeline/i.test(nome)
+      && !nome.startsWith('project.'),
       false,
       `ferramenta criada cedo demais: ${nome}`,
     );

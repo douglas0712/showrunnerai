@@ -114,6 +114,8 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     // da SUA entidade: separar get de save duplicaria essa lista, e a cópia
     // esquecida seria a permissiva. Nenhum deles alcança generation/ — planejar
     // não gera mídia.
+    'tools/handlers/productionMusic.js',
+    'tools/handlers/productionNarration.js',
     'tools/handlers/productionPlan.js',
     // PASSO 13-B: a cena descrita vira cena com imagem. É a ÚNICA ferramenta
     // de produção que alcança generation/facade — planejar não gera, produzir
@@ -130,6 +132,7 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     'tools/handlers/productionSceneVideo.js',
     'tools/handlers/productionScenes.js',
     'tools/handlers/productionScript.js',
+    'tools/handlers/productionSfx.js',
     'tools/handlers/readDocument.js',
     'tools/index.js',
     // PASSO 9: o acompanhamento de uma geração depois que o turno acabou. Vive
@@ -332,7 +335,25 @@ test('19b. a camada de agente não importa next/server — a rota é que a impor
   }
 });
 
-test('19c. a camada de agente só importa de si mesma, domínio, log, e tools pode usar generation/facade', () => {
+/**
+ * Os serviços de geração que uma Agent Tool pode alcançar.
+ *
+ * Fechada de propósito: cada entrada é uma porta de entrada de alto nível que
+ * alguém decidiu abrir. Um módulo novo em `generation/` não entra sozinho.
+ */
+const SERVICOS_DE_GERACAO = new Set([
+  '../generation/facade.js',
+  '../generation/narration.js',
+  '../generation/sceneSfx.js',
+  '../generation/music.js',
+  // sem extensão, para o caso de o import a omitir
+  '../generation/facade',
+  '../generation/narration',
+  '../generation/sceneSfx',
+  '../generation/music',
+]);
+
+test('19c. a camada de agente só importa de si mesma, domínio, log, e tools pode usar os serviços de geração da allowlist', () => {
   // PASSO 6: Tools foram adicionadas e podem importar generation/facade.
   // A arquitetura é:
   // - agent/gateway, core: apenas domain/, logs/, si mesmas
@@ -351,14 +372,25 @@ test('19c. a camada de agente só importa de si mesma, domínio, log, e tools po
         path.posix.join(path.posix.dirname(arquivo), alvo),
       );
 
-      // Tools podem importar generation/facade (high-level)
+      // Tools alcançam uma LISTA FECHADA de serviços de alto nível da camada de
+      // geração — e nada mais dentro dela.
+      //
+      // A regra dizia `generation/facade` porque a facade era o único serviço
+      // quando ela foi escrita. O PASSO 14-E acrescentou os três de áudio, que
+      // são pares dela: alto nível, e eles próprios chamam a facade.
+      //
+      // É uma lista, e não um prefixo, de propósito. `../generation/*` deixaria
+      // pré-autorizado todo módulo que alguém acrescentar ali amanhã —
+      // `reconcile`, `outputs`, `comfyJobState` — que são internos da camada e
+      // não porta de entrada. Cada boundary novo é uma decisão, e uma decisão
+      // aparece aqui.
       const isToolFile = arquivo.startsWith('tools/');
-      const isFacadeImport = resolvido.startsWith('../generation/facade');
+      const isGenerationService = SERVICOS_DE_GERACAO.has(resolvido);
 
       const permitido = !resolvido.startsWith('..')
         || resolvido.startsWith('../domain/')
         || resolvido.startsWith('../logs/')
-        || (isToolFile && isFacadeImport);
+        || (isToolFile && isGenerationService);
 
       assert.ok(
         permitido,

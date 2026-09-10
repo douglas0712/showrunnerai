@@ -446,18 +446,33 @@ test('M+N+O. nenhuma coluna nova, nenhuma tool nova, nenhum Shot', async () => {
     assert.ok(!/clip/i.test(tabela), `apareceu uma tabela de clipe: ${tabela}`);
   }
 
-  // N: as ferramentas de cena continuam sendo as seis do 13-B/C/D.
+  // N: as ferramentas de cena. Eram as do 13-B/C/D até o PASSO 14-E, que
+  // acrescentou o som — narração e efeito, ambos pertencentes à CENA. O que
+  // este teste continua trancando é que nenhuma delas fala de Shot ou clipe: a
+  // cena segue sendo a unidade, e ganhar áudio não a subdividiu.
   const deCena = publicToolList(toolRegistry())
     .map((t) => t.name).filter((n) => n.includes('scene')).sort();
   assert.deepEqual(deCena, [
+    'project.create_scene_sfx_cue',
+    'project.delete_scene_sfx_cue',
     'project.generate_scene_image',
+    'project.generate_scene_narration',
+    'project.generate_scene_sfx',
     'project.generate_scene_video',
     'project.get_scene',
     'project.get_scene_media',
+    'project.get_scene_narration',
+    'project.list_scene_narration_takes',
+    'project.list_scene_sfx_cues',
+    'project.list_scene_sfx_takes',
     'project.list_scenes',
     'project.replace_scenes',
+    'project.select_scene_narration_take',
+    'project.select_scene_sfx_take',
     'project.select_scene_take',
+    'project.set_scene_narration',
     'project.update_scene',
+    'project.update_scene_sfx_cue',
   ]);
 });
 

@@ -450,7 +450,9 @@ test('Z. nenhuma Agent Tool de efeito, e Hermes intocado', () => {
   const publicadas = publicToolList(toolRegistry()).map((t) => t.name);
   for (const nome of publicadas) {
     assert.equal(
-      /sfx|efeito|sound|music|musica|dialogue|foley|ambient|timeline|mix|audio|voice/i.test(nome),
+      /sfx|efeito|sound|music|musica|dialogue|foley|ambient|timeline|mix|audio|voice/i.test(nome)
+      // PASSO 14-E: as tools `project.*` de áudio passaram a existir.
+      && !nome.startsWith('project.'),
       false,
       `ferramenta criada cedo demais: ${nome}`,
     );

@@ -689,7 +689,8 @@ test('Z. nenhuma ferramenta, provider ou geração de áudio nasceu', () => {
   const publicadas = publicToolList(toolRegistry()).map((t) => t.name);
   for (const nome of publicadas) {
     assert.equal(
-      /audio|voice|voz|tts|speech|narration|narracao|music|sfx|dialogue/i.test(nome),
+      /audio|voice|voz|tts|speech|narration|narracao|music|sfx|dialogue/i.test(nome)
+      && !nome.startsWith('project.'),
       false,
       `ferramenta de áudio criada cedo demais: ${nome}`,
     );

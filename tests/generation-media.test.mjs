@@ -76,7 +76,14 @@ test('5. extensão inválida é rejeitada na descoberta e no MIME', () => {
   }
   assert.throws(() => mimeFor('image', 'x.txt'), MediaKindError);
   assert.throws(() => mimeFor('video', 'x.png'), MediaKindError);
-  assert.throws(() => mediaKind('audio'), MediaKindError);
+
+  // `audio` virou um tipo de mídia de verdade no PASSO 14-C2 — antes dele esta
+  // linha afirmava o contrário. O que continua valendo é a regra: cada tipo só
+  // reconhece o que sabe servir, e um kind inventado falha alto.
+  assert.equal(mediaKind('audio').kind, 'audio');
+  assert.throws(() => mimeFor('audio', 'x.png'), MediaKindError);
+  assert.throws(() => mimeFor('image', 'x.wav'), MediaKindError);
+  assert.throws(() => mediaKind('narration'), MediaKindError);
 });
 
 test('6. kind=image não aceita MP4 como output', () => {

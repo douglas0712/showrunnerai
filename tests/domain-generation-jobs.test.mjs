@@ -637,8 +637,12 @@ test('AA+AB. o repositório não conhece executor, runtime nem agente', async ()
   // a consulta da tela e a reconciliação depois de um reinício. É por isso
   // que o vínculo com o take de cena mora aqui, e não em quem começou.
   // Continua sendo tudo domínio: nenhum executor, runtime ou agente.
+  // PASSO 14-C2: `sceneAudio.js` entra pelo MESMO motivo, e é a prova de que a
+  // voz não ganhou um segundo caminho de conclusão — ela chega pelo que já
+  // existia. Continua sendo tudo domínio.
   assert.deepEqual(importados, [
-    './db.js', './generationJobStates.js', './projects.js', './sceneMedia.js',
+    './db.js', './generationJobStates.js', './projects.js', './sceneAudio.js',
+    './sceneMedia.js',
   ]);
 });
 

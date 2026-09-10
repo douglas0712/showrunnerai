@@ -650,9 +650,11 @@ test('AA+AB. o repositório não conhece executor, runtime nem agente', async ()
   // existia. Continua sendo tudo domínio.
   // PASSO 14-D1B: `sceneSfx.js` entra pelo MESMO motivo — o efeito sonoro chega
   // pelo ponto de conclusão que já existia, e não por um segundo caminho.
+  // PASSO 14-D2B: `music.js` entra pelo MESMO motivo — a trilha chega pelo ponto
+  // de conclusão que já existia, e não por um segundo caminho.
   assert.deepEqual(importados, [
-    './db.js', './generationJobStates.js', './projects.js', './sceneAudio.js',
-    './sceneMedia.js', './sceneSfx.js',
+    './db.js', './generationJobStates.js', './music.js', './projects.js',
+    './sceneAudio.js', './sceneMedia.js', './sceneSfx.js',
   ]);
 });
 

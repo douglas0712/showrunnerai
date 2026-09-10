@@ -37,7 +37,8 @@ const PARAMS = {
 
 test('1. o Ideogram aparece no registry ao lado do MiniMax', () => {
   assert.equal(hasWorkflow('ideogram4_t2i'), true);
-  assert.deepEqual(workflowRegistry.ids(), ['minimax_h3_t2v', 'ideogram4_t2i', 'stable_audio_sfx']);
+  assert.deepEqual(workflowRegistry.ids(), ['minimax_h3_t2v', 'ideogram4_t2i', 'stable_audio_sfx',
+    'ace_step_15_music']);
 
   const resumo = listWorkflows().find((w) => w.id === 'ideogram4_t2i');
   assert.ok(resumo);

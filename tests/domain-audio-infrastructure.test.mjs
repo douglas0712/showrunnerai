@@ -661,13 +661,15 @@ test('Y. `audio` tem executor próprio, e nunca cai no de imagem/vídeo', async 
   // caminho SEPARADO, e não um desvio dentro do de imagem ou vídeo.
   const porKind = {};
   for (const w of listWorkflows()) porKind[w.kind] = (porKind[w.kind] || 0) + 1;
-  assert.equal(porKind.audio, 1, 'exatamente um executor de áudio');
+  // Eram um só até o PASSO 14-D2B; agora são dois — efeito e música —, e é
+  // justamente por serem MAIS DE UM que `kind` nunca pôde rotear executor.
+  assert.ok(porKind.audio >= 2, 'ao menos efeito e música');
   assert.ok(porKind.image >= 1 && porKind.video >= 1);
 
-  // O executor resolve o tipo pelo DESCRIPTOR, e não pela linha do job: o
-  // workflow de áudio declara `audio`, e nenhum de imagem/vídeo o declara.
-  const deAudio = listWorkflows().filter((w) => w.kind === 'audio');
-  assert.equal(deAudio[0].id, 'stable_audio_sfx');
+  // O executor resolve o tipo pelo DESCRIPTOR, e não pela linha do job: os
+  // workflows de áudio declaram `audio`, e nenhum de imagem/vídeo o declara.
+  const deAudio = listWorkflows().filter((w) => w.kind === 'audio').map((w) => w.id).sort();
+  assert.deepEqual(deAudio, ['ace_step_15_music', 'stable_audio_sfx']);
   assert.equal(listWorkflows().some((w) => w.kind === 'audio' && /image|video/.test(w.id)), false);
 
   // E a validação de mídia de áudio é a de ÁUDIO — não a de imagem nem a de

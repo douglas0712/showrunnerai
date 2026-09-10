@@ -85,7 +85,8 @@ test('workflow desconhecido falha alto, e nunca cai em outro', () => {
   } catch (erro) {
     assert.match(erro.message, /Workflow desconhecido: "workflow_inexistente"/);
     assert.match(erro.message, /minimax_h3_t2v/);
-    assert.deepEqual(erro.detail.conhecidos, ['minimax_h3_t2v', 'ideogram4_t2i', 'stable_audio_sfx']);
+    assert.deepEqual(erro.detail.conhecidos, ['minimax_h3_t2v', 'ideogram4_t2i', 'stable_audio_sfx',
+    'ace_step_15_music']);
   }
 });
 
@@ -134,7 +135,8 @@ test('dois descriptors fictícios coexistem sem interferência', () => {
 
   // E o registry da aplicação continua só com os workflows reais — os
   // fictícios acima vivem no registry local deste teste, não nele.
-  assert.deepEqual(workflowRegistry.ids(), ['minimax_h3_t2v', 'ideogram4_t2i', 'stable_audio_sfx']);
+  assert.deepEqual(workflowRegistry.ids(), ['minimax_h3_t2v', 'ideogram4_t2i', 'stable_audio_sfx',
+    'ace_step_15_music']);
 });
 
 test('id duplicado é erro de construção, não a última definição vencendo', () => {
@@ -403,7 +405,8 @@ test('listWorkflows não dá alcance ao descriptor por dentro da lista', () => {
   lista.length = 0;
 
   // Nem o registry nem o descriptor sentiram nada.
-  assert.deepEqual(listWorkflows().map((w) => w.id), ['minimax_h3_t2v', 'ideogram4_t2i', 'stable_audio_sfx']);
+  assert.deepEqual(listWorkflows().map((w) => w.id), ['minimax_h3_t2v', 'ideogram4_t2i', 'stable_audio_sfx',
+    'ace_step_15_music']);
   assert.deepEqual([...minimaxH3T2V.modes], modesOriginais);
 
   // E cada chamada devolve objetos novos.

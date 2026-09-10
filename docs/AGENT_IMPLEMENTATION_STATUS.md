@@ -7,8 +7,8 @@ está, o que é verdade, o que não é, e o que continua aberto.
 Ele não depende de `/tmp`, de scratchpad, de histórico de conversa nem da
 memória de nenhuma sessão.
 
-**Atualizado em:** 9 de setembro de 2026
-**HEAD funcional documentado:** `cd4a84faa727e9e1a1d097bfa24a72a0cf85ccc7`
+**Atualizado em:** 10 de setembro de 2026
+**HEAD funcional documentado:** o commit de handoff do **Passo 14** (seção 24)
 
 > **Regra de precedência.** Se este documento divergir do código ou do Git, **o
 > código e o Git são a fonte de verdade**. Verifique antes de confiar. Foi
@@ -22,20 +22,21 @@ memória de nenhuma sessão.
 
 1. Leia este documento inteiro. Ele tem tudo o que você precisa para começar.
 2. `git status --short` — esperado: **vazio** (árvore limpa).
-3. `git log --oneline -5` — esperado: `cd4a84f` no topo.
-4. `npm test` — esperado: **1308 testes, 1308 passando, 0 falhando** (~3 min).
+3. `git log --oneline -5` — esperado: o commit de handoff do Passo 14 no topo.
+4. `npm test` — esperado: **1488 testes, 1488 passando, 0 falhando** (~3 min).
 5. `npm run build` — esperado: compila limpo, 18 páginas estáticas.
-6. **Não refaça os Passos 1–13.** Eles estão prontos, testados e commitados. O
+6. **Não refaça os Passos 1–14.** Eles estão prontos, testados e commitados. O
    **núcleo** do Passo 10 (10.0 a 10.5) está fechado; **10.6 é backlog** e não
    bloqueia nada — ver seção 17. O **Passo 11** (ingestão de documentos) está
    fechado — ver seção 18. O **Passo 12** (planejamento de produção) está
    fechado — ver seção 22. O **Passo 13** (execução da produção: a cena vira
-   imagem e vídeo) está fechado — ver seção 23.
-7. **Dois Quality Gates foram executados no produto real e passaram inteiros:**
-   o audiovisual do núcleo (seção 20) e o do Passo 13 (seção 23), este último
-   com 86 verificações e prova de I2V por SHA-256 do quadro enviado ao executor.
-8. **O próximo passo é o PASSO 14 — PRODUCTION AUDIO** (seção 24). Ele ainda
-   não foi começado, e a arquitetura dele ainda não foi decidida.
+   imagem e vídeo) está fechado — ver seção 23. O **Passo 14** (produção de
+   áudio: narração, efeito e música) está fechado — ver seção 24.
+7. **Três Quality Gates foram executados e passaram inteiros:** o audiovisual do
+   núcleo (seção 20), o do Passo 13 (seção 23, com 86 verificações e prova de
+   I2V por SHA-256 do quadro enviado ao executor) e o do Passo 14 (seção 24).
+8. **O próximo macro passo é o PASSO 15 — TIMELINE / ASSEMBLY / EXPORT**
+   (seção 25). Ele ainda não foi começado, e a arquitetura dele não foi decidida.
 9. Preserve as **NON-NEGOTIABLE ARCHITECTURE RULES**. Elas não são estilo: cada
    uma existe porque a alternativa já causou, ou causaria, um defeito concreto.
 
@@ -52,9 +53,9 @@ ruído do `node:sqlite` no Node 24, não uma falha. Não suprima.
 | Nome do pacote | `showrunner-studio` (ver `package.json`) |
 | Branch | `main` |
 | Remote | `origin` → `https://github.com/douglas0712/showrunnerai.git` |
-| HEAD funcional | `cd4a84faa727e9e1a1d097bfa24a72a0cf85ccc7` |
+| HEAD funcional | o commit de handoff do Passo 14 (seção 24) |
 | Working tree | limpa |
-| Testes | 1308 / 1308 passando, 0 falhas |
+| Testes | 1488 / 1488 passando, 0 falhas |
 | Build | limpo (`✓ Compiled successfully`, 18/18 páginas) |
 | Node | v24.x (usa `node:sqlite`, experimental) |
 | Next | 15.5.15 · React 19.2.8 |
@@ -416,7 +417,34 @@ project.generate_scene_image  o que a produção JÁ TEM
 project.generate_scene_video
 project.get_scene_media
 project.select_scene_take
+
+project.get_scene_narration          como a produção SOA — a voz da cena
+project.set_scene_narration
+project.generate_scene_narration
+project.list_scene_narration_takes
+project.select_scene_narration_take
+
+project.create_scene_sfx_cue         o efeito, vários por cena
+project.update_scene_sfx_cue
+project.list_scene_sfx_cues
+project.delete_scene_sfx_cue
+project.generate_scene_sfx
+project.list_scene_sfx_takes
+project.select_scene_sfx_take
+
+project.create_music_cue             a trilha, do PROJETO e não da cena
+project.update_music_cue
+project.list_music_cues
+project.delete_music_cue
+project.generate_music
+project.list_music_takes
+project.select_music_take
 ```
+
+São **36 tools** — 17 até o Passo 13, mais as **19 de áudio** do Passo 14-E
+(seção 24.8). A cobertura entre registry JS, aliases do Hermes, `plugin.yaml` e
+plugin Python é exata nas quatro superfícies: **36 / 36 / 36 / 36**, sem tool
+faltando e sem alias órfão.
 
 **Dezessete ferramentas.** Eram cinco antes do Passo 12; as oito de planejamento
 entraram nele (seção 22) e as **quatro** de execução entraram no Passo 13
@@ -1200,6 +1228,21 @@ Credenciais do provider de LLM ficam em `runtime/hermes/home/.env` e
 > **Nenhum valor de token, chave ou senha aparece neste documento, e nenhum deve
 > ser acrescentado a ele.** Só nomes de variáveis.
 
+### Dependências de áudio (Passo 14)
+
+**Nenhum peso de modelo mora no repositório.** As três famílias de som dependem
+de coisas instaladas fora dele:
+
+| Variável / recurso | Governa | Se faltar |
+| --- | --- | --- |
+| `PIPER_HOME` | onde o Piper está instalado | a narração **recusa** com uma mensagem que diz o que falta — não falha em silêncio |
+| `PIPER_VOICE` | qual voz usar | cai no basename padrão de `lib/server/tts/piper.js` |
+| pesos do **Stable Audio** | efeito sonoro | externos ao repositório, resolvidos pelo ComfyUI |
+| pesos do **ACE-Step 1.5** | música | externos ao repositório, no SSD2, resolvidos via `extra_model_paths.yaml` do ComfyUI |
+
+Piper é um processo local; Stable Audio e ACE-Step rodam **dentro do ComfyUI**.
+É por isso que o executor sai do `workflowId` e não do `kind` — ver seção 24.2.
+
 ### Precedência de ambiente para localização de arquivos
 
 | Variável | Governa | Precedência |
@@ -1461,6 +1504,34 @@ meio pedido — a persona manda listar e perguntar, e no gate ela se comportou
 assim, mas **nada no servidor impede** o modelo de escolher em silêncio. Não há
 parser de linguagem natural no servidor, e não deve haver.
 
+### T. O som existe, mas não toca em lugar nenhum — **Passo 15**
+
+O Passo 14 fez a narração, o efeito e a música **existirem e serem escolhidos**.
+Não fez nenhum deles **soar no tempo**. Não há Timeline, track placement,
+montagem, mixagem, gain, pan, fade, ducking, loop, sync A/V, captions nem export
+de áudio — e também não há domínio de Dialogue, de lyrics, de BPM, de tonalidade
+ou de sequência. A cue diz **o que** o som é, e nunca **onde** nem **quando**.
+
+Duas consequências concretas, hoje:
+
+- **uma cue de música não sabe onde começa nem onde termina.** Ela é do Project
+  (seção 24.1), e não tem posição. É a pergunta central do Passo 15;
+- **a duração da voz e a duração planejada da cena não conversam.** As duas
+  existem — `Scene.durationSeconds` e `Asset.durationSeconds`, esta medida pelo
+  ffprobe — e nada as concilia. O Passo 14 deliberadamente não decidiu o que
+  acontece quando a voz é mais longa que a cena.
+
+`lib/server/export/` existe e menciona áudio, mas é **anterior ao Passo 14**:
+trata de normalização de faixa do ffmpeg no export de vídeo, e não conhece cue,
+take nem seleção. É ponto de partida do Passo 15, não solução.
+
+### U. A geração de áudio depende de coisas instaladas fora do repositório
+
+Piper (`PIPER_HOME` / `PIPER_VOICE`), os pesos do Stable Audio e os do ACE-Step
+1.5 são externos ao Git — ver seção 12. Sem eles, a geração **recusa com uma
+mensagem que diz o que falta**, que é o modo de falhar certo, mas significa que
+um clone limpo do repositório **não gera som** até o operador providenciá-los.
+
 ### S. `selectSceneTake` do domínio é primitiva permissiva
 
 Ela move o ponteiro e não exige que o take esteja pronto. A política "só take
@@ -1515,6 +1586,16 @@ comportamento esperado, não escondido.
 | **13-D** — Selection & Agent UX (ler a mídia da cena e escolher) | ✅ | `0efe52a` |
 | **13-E** — Production Generation Parameters (formato do plano) | ✅ | `cc0d7bb` |
 | **13-F** — Quality Gate Final do Passo 13 (86 verificações) | ✅ | `cd4a84f` |
+| **14-A** — Narration Domain (a narração da cena vira estado formal) | ✅ | `735527c` |
+| **14-B** — Scene Audio Takes (takes e seleção de voz, migração 11) | ✅ | `966d126` |
+| **14-C1** — Audio Infrastructure (`kind='audio'`, migração 12) | ✅ | `65c1166` |
+| **14-C2** — Narration TTS / Piper (a voz vira arquivo) | ✅ | `758cf53` |
+| **14-D1A** — SFX Domain (cues de efeito na cena, migração 13) | ✅ | `d0098d5` |
+| **14-D1B** — SFX Generation / Stable Audio | ✅ | `a8f7a06` |
+| **14-D2A** — Music Domain (cues de música no PROJETO, migração 14) | ✅ | `45660cb` |
+| **14-D2B** — Music Generation / ACE-Step 1.5 | ✅ | `40792f8` |
+| **14-E** — Audio Agent UX (as 19 Agent Tools de áudio) | ✅ | `e91ec70` |
+| **14-F** — Quality Gate Final do Passo 14 | ✅ | seção 24 |
 
 ---
 
@@ -3147,7 +3228,321 @@ aparecem; os aliases do runtime, não.
 
 ---
 
-## 24 · O que está aberto, e o próximo passo
+## 24 · PASSO 14 — AUDIO PRODUCTION: COMPLETO ✅
+
+O Passo 13 fez a cena virar imagem e vídeo. O **Passo 14 fez a produção soar**:
+narração, efeito sonoro e música. Está **fechado** — os dez subpassos, o quality
+gate transversal e o handoff.
+
+| Subpasso | O que entregou | Estado |
+| --- | --- | --- |
+| **14-A** — Narration Domain | a narração da cena vira estado formal | ✅ |
+| **14-B** — Scene Audio Takes | takes e seleção de voz (migração 11) | ✅ |
+| **14-C1** — Audio Infrastructure | `kind='audio'` no Asset e no job (migração 12) | ✅ |
+| **14-C2** — Narration TTS / Piper | a voz vira arquivo | ✅ |
+| **14-D1A** — SFX Domain | cues de efeito na cena (migração 13) | ✅ |
+| **14-D1B** — SFX Generation | Stable Audio, via ComfyUI | ✅ |
+| **14-D2A** — Music Domain | cues de música no PROJETO (migração 14) | ✅ |
+| **14-D2B** — Music Generation | ACE-Step 1.5, via ComfyUI | ✅ |
+| **14-E** — Audio Agent UX | as 19 Agent Tools de áudio | ✅ |
+| **14-F** — Quality Gate | auditoria transversal + este handoff | ✅ |
+
+### 24.1 · A arquitetura final — três famílias, três cardinalidades
+
+O que separa as três não é o formato do arquivo: é **de quem o som é**, e
+**quantos cabem**. Foi essa diferença que impediu uma tabela só e uma ferramenta
+só (`audio.generate`) — as três cardinalidades teriam de se esconder num
+parâmetro, e o modelo escolheria errado.
+
+```
+NARRAÇÃO — a voz da cena
+  Project → Production Scene → narration (texto) → N takes → 1 selecionado
+  ownership : Scene            executor : Piper
+  workflowId: narration-tts
+
+EFEITO — o desenho sonoro da cena
+  Project → Production Scene → N cues → N takes por cue → 1 selecionado por cue
+  ownership : Scene + Cue      executor : ComfyUI / Stable Audio
+  workflowId: stable_audio_sfx
+
+MÚSICA — a trilha da produção
+  Project → N cues → N takes por cue → 1 selecionado por cue
+  ownership : Project          executor : ComfyUI / ACE-Step 1.5
+  workflowId: ace_step_15_music
+```
+
+**A música NÃO pertence à cena, e isso é a decisão de arquitetura mais
+consequente do Passo 14.** Uma trilha atravessa cenas; prendê-la a uma delas
+faria a cena 4 "possuir" um tema que soa da 1 à 9. A tabela
+`production_music_cues` tem `projectId` e **não tem `sceneId`** — a garantia é
+estrutural, não uma convenção de chamada.
+
+### 24.2 · O routing dos executores — por workflow, nunca por `kind`
+
+Este é o maior invariant do Passo 14, e o que mais custaria caro se quebrasse.
+
+As três famílias são `kind='audio'`. **Se `kind` decidisse o executor, as três
+iriam para o mesmo lugar.** Quem decide é o `workflowId`:
+
+```
+narration-tts       → Piper
+stable_audio_sfx    → ComfyUI · Stable Audio
+ace_step_15_music   → ComfyUI · ACE-Step 1.5
+```
+
+Não existe, em lugar nenhum, `if (kind === 'audio') use Piper` nem o inverso. A
+única leitura de `kind === 'audio'` no repositório está em
+`lib/server/comfy/provider.js`, e é **validação de mídia** (o arquivo é mesmo
+áudio?), não escolha de executor.
+
+A mesma regra governa a **recuperação**, e pelo mesmo motivo:
+
+- `reconcileNarrationJobs` filtra por `workflowId = 'narration-tts'` — varrer
+  todo `kind='audio'` marcaria como órfão um efeito **vivo na GPU**;
+- a reconciliação do ComfyUI filtra pelos workflows que **resolvem no registry**
+  — `narration-tts` não é grafo nenhum, e por isso a narração nunca entra nela.
+
+As duas partições são disjuntas e cobrem tudo. Nenhuma reconciliação ressubmete
+às cegas, cria take duplicado, inventa Asset ou troca seleção.
+
+### 24.3 · Schema — 14 migrações, e nenhuma no quality gate
+
+`ESQUEMA_ATUAL = 14`. As oito tabelas que o Passo 14 acrescentou:
+
+```
+migração 11  production_scene_audio_takes · production_scene_audio_selections
+migração 12  rebuild de assets e generation_jobs para o kind 'audio'
+migração 13  production_scene_sfx_cues · _takes · _selections
+migração 14  production_music_cues · _takes · _selections
+```
+
+Verificado no 14-F, com banco em disco:
+
+- `PRAGMA foreign_key_check` = **0**, em banco novo e em banco migrado;
+- `PRAGMA integrity_check` = **ok** nos dois;
+- um banco parado na migração 10 (pré-áudio), com dado gravado, subiu até a 14
+  **preservando o dado** e chegou a um schema **byte a byte idêntico** ao de um
+  banco criado do zero.
+
+Nas tabelas de seleção, a chave estrangeira é **composta** (`sceneId+role+takeId`,
+`cueId+takeId`): o banco recusa, por construção, uma seleção que aponte para um
+take de outra cena ou de outra cue.
+
+### 24.4 · Vocabulários — o que o Passo 14 NÃO alargou
+
+```
+ASSET_KINDS          ['image', 'video', 'audio']
+GENERATION_JOB_KINDS ['image', 'video', 'audio']
+SCENE_MEDIA_KINDS    ['image', 'video']     ← intocado
+AUDIO_ROLES          ['narration']          ← música e efeito NÃO entram
+```
+
+`production_scene_media` continua **image/video-only**. Música e efeito têm
+tabelas próprias porque têm cardinalidade própria — enfiá-los em `AUDIO_ROLES`
+os faria herdar a regra "um por cena", que é falsa para os dois.
+
+### 24.5 · Livro-razão compartilhado
+
+As três famílias usam `generation_jobs`, `assets` e `completeGenerationJob`.
+**Não existe um segundo livro-razão.** Para efeito e música,
+`derivedFromAssetId = null` (nada é derivado de um Asset anterior, ao contrário
+do I2V). `Asset.durationSeconds` vem da **mídia medida** pelo ffprobe.
+
+A validação de áudio exige as três coisas: `hasAudio = true`, `duration > 0` e
+`hasVideo = false` — um contêiner com imagem dentro não vira "efeito sonoro".
+
+### 24.6 · Proveniência, `current`/`stale` e a política de seleção
+
+**A impressão é do texto, e só do texto.** SHA-256 da fonte textual autoritativa
+persistida — a narração da cena, a descrição da cue:
+
+```
+Narration Take → sourceNarrationFingerprint
+SFX Take       → sourceCueFingerprint
+Music Take     → sourceCueFingerprint
+```
+
+Não entram: provider, workflow, seed, model, Asset, job, número do take. Editar
+o texto **não reescreve** a impressão antiga — o take antigo continua sendo a
+prova do que ele nasceu para dizer.
+
+**Nenhuma das três tabelas persiste `current`, `stale` ou `outdated`.** As três
+colunas não existem. `current` é **derivado** na leitura, comparando a impressão
+do take com a impressão do texto de agora. A consequência é desejada:
+`selected = true` com `current = false` é um estado **legítimo**, e voltar ao
+texto antigo torna o take antigo `current` de novo.
+
+A política de seleção é **a mesma nas três famílias**:
+
+| | Situação | O que acontece |
+| --- | --- | --- |
+| **A** | sem seleção + take current conclui | **seleciona** |
+| **B** | seleção current + novo current conclui | **NÃO** troca em silêncio |
+| **C** | seleção stale + novo current conclui | **seleciona** o novo |
+| **D** | take conclui stale | **NÃO** seleciona |
+
+E as seleções são **independentes**: por cue no efeito, por cue na música, por
+cena na narração. Concluir uma não move as outras — provado em
+`tests/audio-quality-gate.test.mjs`.
+
+**A corrida.** Se o texto mudar enquanto a geração está no ar, o take conclui,
+**recebe o Asset** e fica `current = false`. A mídia válida **nunca é
+descartada** — ela custou GPU, e o usuário pode querer voltar ao texto antigo.
+Ela apenas não rouba a seleção.
+
+### 24.7 · Apagar, e `replaceProductionScenes`
+
+Uma cue (de efeito ou de música) **não pode ser apagada com geração em voo** — a
+resposta é recusa, e não um cancelamento inventado. Apagar cue ou take não apaga
+Asset nem job histórico: as chaves estrangeiras para `assets` e `generation_jobs`
+são `SET NULL`, não `CASCADE`. Apagar o Project leva as três famílias junto.
+
+`replaceProductionScenes` apaga as cenas e as reinsere com `id` novo. O que
+bloqueia, e o que não:
+
+```
+SceneMedia (imagem/vídeo)  → BLOQUEIA
+Narration Audio Take       → BLOQUEIA
+SFX Cue                    → BLOQUEIA — mesmo SEM take
+Music Cue                  → NÃO bloqueia, e sobrevive intacta
+```
+
+A cue de efeito bloqueia **mesmo sem take** porque ela é a *decisão* de que a
+cena tem aquele som — sound design que alguém escreveu, e que o CASCADE levaria
+em silêncio.
+
+**A música não bloqueia porque não precisa: ela não pende da cena.** A diferença
+é intencional, e é consequência direta do ownership da seção 24.1.
+
+### 24.8 · As 19 Agent Tools de áudio
+
+O Passo 14-E levou o som para a conversa. **36 tools no total**, com cobertura
+exata e zero órfãos entre as quatro superfícies (registry JS, aliases,
+`plugin.yaml`, plugin Python): **36 / 36 / 36 / 36**.
+
+```
+NARRAÇÃO (5)   get_scene_narration · set_scene_narration
+               generate_scene_narration · list_scene_narration_takes
+               select_scene_narration_take
+
+EFEITO (7)     create_scene_sfx_cue · update_scene_sfx_cue
+               list_scene_sfx_cues · delete_scene_sfx_cue
+               generate_scene_sfx · list_scene_sfx_takes
+               select_scene_sfx_take
+
+MÚSICA (7)     create_music_cue · update_music_cue · list_music_cues
+               delete_music_cue · generate_music · list_music_takes
+               select_music_take
+```
+
+**A superfície pública inteira são cinco palavras:** `ordinal`, `cueNumber`,
+`takeNumber`, `text`, `description`. O modelo nunca vê — e nunca escolhe —
+`projectId`, `workflowId`, provider, `providerJobId`, seed, checkpoint, model,
+caminho de arquivo, nó do ComfyUI, caminho do Piper, internals de job, Asset id
+ou impressão. O `projectId` vem do **contexto Showrunner**, e é por isso que as
+sete ferramentas de música **não têm `ordinal` nenhum**: o ownership aparece na
+assinatura.
+
+Duas consequências de desenho que valem preservar:
+
+- **"faça outra versão" é chamar a mesma `generate` de novo.** Não existe
+  `regenerate`. Uma segunda ferramenta para a mesma intenção seria uma segunda
+  grafia, e o modelo escolheria a menos testada;
+- **"use o take 2" é `select` por `takeNumber`.** Nunca por Asset id — o número
+  é o que a pessoa vê na listagem, e o Asset id é internals.
+
+**O boundary é uma allowlist fechada**, conferida por teste de arquitetura. Uma
+Agent Tool alcança `generation/facade`, `generation/narration`,
+`generation/sceneSfx` e `generation/music` — e mais nada dentro de `generation/`.
+Não é um prefixo `generation/*` de propósito: isso pré-autorizaria `reconcile`,
+`outputs` e `comfyJobState`, que são internos da camada.
+
+```
+Agent Tool → Domain / Generation Service de alto nível → infraestrutura
+Agent Tool → provider/executor                          ← NUNCA
+```
+
+### 24.9 · Isolamento do Hermes
+
+```
+Hermes → native Showrunner Tool → bridge → domain / generation service
+```
+
+O plugin Python importa **`json`, `os` e `socket`, e nada mais**: sem
+`subprocess`, sem ComfyUI, sem Piper, sem shell, sem sistema de arquivos. Tudo
+atravessa um socket Unix local, e quem decide qualquer coisa é o Showrunner.
+
+A tabela de aliases é **fechada** — o provider por trás do Hermes recusa ponto em
+nome de ferramenta, então cada tool tem um alias `og_*` / `project_*`. Nenhum
+alias aparece num AgentEvent, numa resposta de API ou na tela: o navegador
+continua indo `AgentScreen → Showrunner Agent API → Gateway`, e **nenhum
+identificador ou protocolo do Hermes vaza para a UI**.
+
+### 24.10 · O que o quality gate 14-F verificou
+
+Auditoria transversal do Passo 14 inteiro. **Nenhum defeito real foi
+encontrado** — as invariantes se sustentaram como desenhadas, e por isso o 14-F
+**não alterou uma linha de código de produção**.
+
+Uma lacuna real foi encontrada e fechada: cada família tinha o seu arquivo de
+teste, e cada um provava a sua família **em isolamento**. Faltava a prova de
+**convivência**. `tests/audio-quality-gate.test.mjs` (6 testes) põe as três no
+mesmo Project e tranca o que só aparece quando estão juntas: ownership, os três
+`kind='audio'` indo para executores diferentes, três seleções vizinhas que não
+se movem, a corrida com stale isolado, o bloqueio assimétrico de
+`replaceProductionScenes`, e a fronteira do projeto.
+
+```
+Testes ....... 1488 / 1488 · 0 falhas · 0 canceladas · 0 puladas
+Build ........ npm run build · exit 0 · 18 páginas
+Schema ....... 14 · foreign_key_check = 0 · fresh ≡ migrado
+```
+
+**Smokes reais** (GPU), considerados como evidência já produzida nos subpassos —
+o 14-F não alterou nenhum caminho de provider ou de conclusão, e por isso não os
+repetiu:
+
+| Família | Executor | Smoke |
+| --- | --- | --- |
+| Narração | Piper | ✅ passou (14-C2) |
+| Efeito | Stable Audio / ComfyUI | ✅ passou (14-D1B) |
+| Música | ACE-Step 1.5 / ComfyUI | ✅ passou (14-D2B) |
+
+### 24.11 · Dependências operacionais locais
+
+Nenhum peso de modelo mora no repositório.
+
+- **Piper** — configurado por `PIPER_HOME` e `PIPER_VOICE`. Sem eles, a narração
+  recusa com uma mensagem que diz o que falta;
+- **Stable Audio** — pesos externos ao repositório, resolvidos pelo ComfyUI;
+- **ACE-Step 1.5** — pesos externos ao repositório, no SSD2, resolvidos via
+  `extra_model_paths.yaml` do ComfyUI.
+
+### 24.12 · O que o Passo 14 NÃO fez
+
+Confirmado por auditoria: nenhuma tabela, módulo ou ferramenta destes assuntos
+existe. O Passo 14 fez o som **existir e ser escolhido** — não fez ele **tocar
+em algum lugar**:
+
+```
+sem Timeline          sem ducking           sem Dialogue
+sem track placement   sem loop              sem lyrics domain
+sem montagem          sem sync A/V          sem BPM domain
+sem mixagem           sem captions          sem key domain
+sem gain · pan · fade sem export de áudio   sem sequence domain
+```
+
+Uma nota de honestidade: `lib/server/export/` existe e menciona áudio, mas é
+**anterior ao Passo 14** (vem do baseline) e trata de normalização de faixa do
+ffmpeg no export de vídeo. **Não** é export de produção de áudio, e o Passo 14
+não o tocou.
+
+A cue diz **o que** o som é, e nunca **onde** nem **quando** ele soa. Esse é o
+assunto do Passo 15.
+
+---
+
+## 25 · O que está aberto, e o próximo passo
 
 ### O estado, em sete linhas
 
@@ -3158,46 +3553,41 @@ Thread Continuity ..................... ✅
 Quality Gate Audiovisual .............. ✅
 Passo 12 · Production Planning ........ ✅
 Passo 13 · Production Execution ....... ✅
+Passo 14 · Audio Production ........... ✅
 
 10.6 · Operational Hardening .......... ⏸ backlog
 ```
 
-### NEXT — PASSO 14: PRODUCTION AUDIO
+### NEXT — PASSO 15: TIMELINE / ASSEMBLY / EXPORT
 
-O Passo 13 fez a cena virar imagem e vídeo. O **Passo 14 é a voz**.
+O Passo 13 fez a cena virar imagem e vídeo. O Passo 14 fez a produção soar. O
+**Passo 15 é o tempo**: onde cada coisa entra, quanto dura, e como tudo isso
+vira uma peça só.
 
-**Primeiro subpasso planejado: 14-A — Narration Domain.**
-
-A direção conceitual, e só a direção:
-
-```
-Production Scene.narration
-  → representação durável da produção de voz/áudio
-  → preparação para TTS
-```
-
-**A arquitetura completa do Passo 14 NÃO foi decidida, e este documento não a
-decide.** Registrar aqui a forma final de um take de áudio, ou a relação entre
-narração e clipe, seria escolher sem medir — foi exatamente esse cuidado que
-manteve o Passo 13 pequeno em cada subpasso.
+**A arquitetura do Passo 15 NÃO foi decidida, e este documento não a decide.**
+Registrar aqui a forma de uma trilha ou de um item de timeline seria escolher sem
+medir — foi exatamente esse cuidado que manteve os Passos 13 e 14 pequenos em
+cada subpasso.
 
 O que já está no lugar e não precisa ser inventado:
 
-- **a narração já é estado do Project** — `production_scenes.narration` existe
-  desde o Passo 12, separada da descrição visual justamente porque são dois
-  destinos diferentes: uma vira voz, a outra vira imagem (seção 22);
-- **a forma de uma cena ter mídia numerada e escolhível já existe** — takes e
-  seleção, `kind` como vocabulário fechado (seção 7). Se áudio for um `kind`,
-  é uma decisão a tomar, não uma estrutura a construir;
-- **o pipeline de geração é genérico e durável** — facade, livro-razão,
-  autonomia do Passo 9 e recuperação do Passo 10 não sabem o que é imagem;
-- **a duração narrativa da cena está lá, intocada** — e a relação dela com a
-  duração real da voz é uma das perguntas que o Passo 14 vai ter de responder.
+- **cada cena tem um vídeo ESCOLHIDO** (seção 23), e agora **um som escolhido em
+  três famílias** (seção 24). Há material a montar, e ele já tem seleção;
+- **a duração narrativa da cena existe**, e a duração REAL da mídia também —
+  `Asset.durationSeconds` vem do ffprobe. A relação entre as duas é uma das
+  perguntas do Passo 15, e o Passo 14 deliberadamente não a respondeu;
+- **o ownership já diz o que atravessa cena e o que não** — a música é do
+  Project justamente porque uma trilha não cabe numa cena (seção 24.1). Essa
+  distinção foi feita pensando na timeline;
+- **`lib/server/export/` existe** desde o baseline, e trata de ffmpeg e
+  normalização de faixa. É ponto de partida, não solução: ele é anterior a tudo
+  isso e não conhece cue, take nem seleção.
 
-As perguntas em aberto que o Passo 14 vai ter de responder — e que este documento
-**não** responde: se áudio é um `kind` de take ou outra entidade; se a narração
-gerada tem tentativas como imagem e vídeo; o que acontece quando a voz é mais
-longa que a cena planejada; e qual a relação disso com Shot e com a montagem.
+As perguntas em aberto que o Passo 15 vai ter de responder — e que este documento
+**não** responde: se a timeline é entidade persistida ou derivada da seleção; o
+que acontece quando a voz é mais longa que a cena planejada; onde uma cue de
+música **começa e termina**, já que hoje ela não sabe; se ducking e mixagem são
+domínio ou parâmetro de export; e qual a relação disso com Shot e com a decupagem.
 
 ### As frentes que continuam abertas
 
@@ -3206,7 +3596,7 @@ frente exige — a ordem é decisão de produto.
 
 | Frente | O que ela exige, concretamente |
 | --- | --- |
-| **Passo 14 — Production Audio** | **o próximo.** `Scene.narration` → voz durável → TTS. Ver acima |
+| **Passo 15 — Timeline / Assembly / Export** | **o próximo.** Onde cada som e cada plano entram no tempo, e como viram uma peça só. Ver acima |
 | **Shot — a decupagem** | a cena narrativa é mais longa que um clipe. Quantos planos, de que duração, e como se ordenam — nada decidido (limitação O) |
 | **10.6 — Operational Hardening** | fila própria, backpressure, concorrência controlada, cancelamento seletivo, leases/multi-worker (limitação J) |
 | **OCR / PDF escaneado** | fora do Passo 11 por decisão. Hoje um PDF sem texto é recusado com honestidade |
@@ -3216,7 +3606,7 @@ frente exige — a ordem é decisão de produto.
 | **Reordenar e apagar cenas** | hoje as duas exigem `project.replace_scenes`. Uma `reorder_scene` precisa decidir o que acontece com os ordinais das outras; uma `delete_scene`, o que fazer com o buraco no `1..n` |
 | **Versões de plano, roteiro e cenas** | só vale a pena com uma forma de escolher entre elas. Ver a limitação G-bis |
 | **UI de Production Planning** | plano, roteiro e cenas hoje só existem pela conversa |
-| **Montagem final** | juntar os planos aprovados numa peça só. Agora há o que juntar: cada cena tem um vídeo ESCOLHIDO (seção 23) |
+| **Montagem final** | absorvida pelo Passo 15. Agora há muito o que juntar: cada cena tem um vídeo ESCOLHIDO (seção 23) e um som escolhido em três famílias (seção 24) |
 | **Multi-provider / nuvem** | hoje só ComfyUI local |
 | **WhatsApp e outros canais** | a arquitetura permite (toda decisão mora no servidor), nada foi construído — limitação I |
 | **Research Lab** | — |
@@ -3229,7 +3619,7 @@ Duas coisas que não são frentes, mas continuam pendentes e são baratas:
 
 ---
 
-## 25 · NON-NEGOTIABLE ARCHITECTURE RULES
+## 26 · NON-NEGOTIABLE ARCHITECTURE RULES
 
 Cada regra existe porque a alternativa já causou, ou causaria, um defeito
 concreto. Não são preferência de estilo.
@@ -3365,7 +3755,7 @@ concreto. Não são preferência de estilo.
 
 ---
 
-## 26 · Mapa de arquivos
+## 27 · Mapa de arquivos
 
 Só o que ajuda a navegar. Não é catálogo do repositório.
 
@@ -3434,6 +3824,9 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/agent/tools/handlers/productionSceneMedia.js` | `project.generate_scene_image` (Passo 13-B) — a ÚNICA família de produção que alcança `generation/facade` |
 | `lib/server/agent/tools/handlers/productionSceneVideo.js` | `project.generate_scene_video` (Passo 13-C) — e a resolução server-side da imagem escolhida |
 | `lib/server/agent/tools/handlers/productionSceneTakes.js` | `project.get_scene_media` · `project.select_scene_take` (Passo 13-D) |
+| `lib/server/agent/tools/handlers/productionNarration.js` | as **5** tools de narração (Passo 14-E) — a costura `generate_scene_narration` → `startNarrationGeneration` |
+| `lib/server/agent/tools/handlers/productionSfx.js` | as **7** tools de efeito (Passo 14-E) — cue e take, por cena |
+| `lib/server/agent/tools/handlers/productionMusic.js` | as **7** tools de música (Passo 14-E) — sem `ordinal` nenhum: a trilha é do Project |
 | `lib/server/agent/tools/jobWatch.js` | **o acompanhamento**: single-flight, laço, teto, ciclo de vida, associação |
 
 ### Geração
@@ -3441,7 +3834,10 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | Caminho | Papel |
 | --- | --- |
 | `lib/server/generation/facade.js` | API de alto nível; onde o Asset nasce e onde o livro-razão é escrito. Também o gancho `aoRegistrar` (entre registrar e submeter) e a conferência de formato contra o descriptor |
-| `lib/server/generation/reconcile.js` | **a recuperação de arranque**: `/history` + `/queue`, finalização, acompanhamento retomado, `orphaned` |
+| `lib/server/generation/reconcile.js` | **a recuperação de arranque** do ComfyUI: `/history` + `/queue`, finalização, acompanhamento retomado, `orphaned`. Filtra pelos workflows que **resolvem no registry** — e é por isso que a narração nunca entra nela |
+| `lib/server/generation/narration.js` | narração → **Piper**, `workflowId = narration-tts`. Inclui `reconcileNarrationJobs`, que filtra por workflow e não por `kind` |
+| `lib/server/generation/sceneSfx.js` | efeito → **Stable Audio / ComfyUI**, `workflowId = stable_audio_sfx` |
+| `lib/server/generation/music.js` | música → **ACE-Step 1.5 / ComfyUI**, `workflowId = ace_step_15_music` |
 | `lib/server/generation/jobStates.js` | reexportação do vocabulário do domínio (nada é decidido aqui) |
 | `lib/server/generation/comfyJobState.js` | tradução do estado do ComfyUI → estado do Showrunner, tabela fechada |
 | `lib/server/generation/mediaKinds.js` | tabela por tipo (diretório, MIME, extensões) |
@@ -3467,6 +3863,10 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/domain/documents.js` | **o documento do Project**: criação transacional, leitura paginada, fronteira de projeto |
 | `lib/server/domain/production.js` | **o planejamento**: plano, roteiro e cenas. A única porta de escrita, e o lugar onde a cadeia Project → Plan → Script → Scenes é imposta |
 | `lib/server/domain/scenes.js` | Scene do **storyboard** (migração 1). Legada, sem escritor em produção — **não confunda com `production.js`**; ver seção 7 |
+| `lib/server/domain/narration.js` | **a narração como fonte autoritativa** (14-A) — e `narrationFingerprint`, SHA-256 do texto e de mais nada |
+| `lib/server/domain/sceneAudio.js` | **os takes de voz da cena** (14-B) — `AUDIO_ROLES`, seleção por cena, política A/B/C/D |
+| `lib/server/domain/sceneSfx.js` | **o desenho sonoro da cena** (14-D1A) — cues, takes e seleção **por cue** |
+| `lib/server/domain/music.js` | **a trilha da PRODUÇÃO** (14-D2A) — `projectId`, e nenhum `sceneId`. Ver seção 24.1 |
 | `lib/server/domain/index.js` | barril — **note o que ele deliberadamente não exporta** |
 
 ### Ingestão de documentos (Passo 11)
@@ -3547,7 +3947,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 ---
 
-## 27 · Convenções que valem a pena preservar
+## 28 · Convenções que valem a pena preservar
 
 - **Injeção de dependência no estilo da casa:** último parâmetro com default
   (`db = database()`, `root = RUNTIME_ROOT`, `deps = {}`). É o que torna tudo

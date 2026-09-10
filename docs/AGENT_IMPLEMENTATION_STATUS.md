@@ -8,7 +8,7 @@ Ele não depende de `/tmp`, de scratchpad, de histórico de conversa nem da
 memória de nenhuma sessão.
 
 **Atualizado em:** 9 de setembro de 2026
-**HEAD funcional documentado:** `510186636e08fe77e2b93d784ee48ba644aad84b`
+**HEAD funcional documentado:** `cd4a84faa727e9e1a1d097bfa24a72a0cf85ccc7`
 
 > **Regra de precedência.** Se este documento divergir do código ou do Git, **o
 > código e o Git são a fonte de verdade**. Verifique antes de confiar. Foi
@@ -22,18 +22,19 @@ memória de nenhuma sessão.
 
 1. Leia este documento inteiro. Ele tem tudo o que você precisa para começar.
 2. `git status --short` — esperado: **vazio** (árvore limpa).
-3. `git log --oneline -5` — esperado: `5101866` no topo do trabalho funcional.
-4. `npm test` — esperado: **1208 testes, 1208 passando, 0 falhando** (~3 min).
+3. `git log --oneline -5` — esperado: `cd4a84f` no topo.
+4. `npm test` — esperado: **1308 testes, 1308 passando, 0 falhando** (~3 min).
 5. `npm run build` — esperado: compila limpo, 18 páginas estáticas.
-6. **Não refaça os Passos 1–12.** Eles estão prontos, testados e commitados. O
+6. **Não refaça os Passos 1–13.** Eles estão prontos, testados e commitados. O
    **núcleo** do Passo 10 (10.0 a 10.5) está fechado; **10.6 é backlog** e não
    bloqueia nada — ver seção 17. O **Passo 11** (ingestão de documentos) está
    fechado — ver seção 18. O **Passo 12** (planejamento de produção) está
-   fechado — ver seção 22.
-7. **O Quality Gate audiovisual foi executado à mão, no produto real, e passou
-   inteiro** — inclusive a linhagem imagem → vídeo, verificada no banco e no
-   grafo submetido ao executor: seção 20.
-8. **O próximo passo é o PASSO 13 — PRODUCTION EXECUTION** (seção 23). Ele ainda
+   fechado — ver seção 22. O **Passo 13** (execução da produção: a cena vira
+   imagem e vídeo) está fechado — ver seção 23.
+7. **Dois Quality Gates foram executados no produto real e passaram inteiros:**
+   o audiovisual do núcleo (seção 20) e o do Passo 13 (seção 23), este último
+   com 86 verificações e prova de I2V por SHA-256 do quadro enviado ao executor.
+8. **O próximo passo é o PASSO 14 — PRODUCTION AUDIO** (seção 24). Ele ainda
    não foi começado, e a arquitetura dele ainda não foi decidida.
 9. Preserve as **NON-NEGOTIABLE ARCHITECTURE RULES**. Elas não são estilo: cada
    uma existe porque a alternativa já causou, ou causaria, um defeito concreto.
@@ -51,9 +52,9 @@ ruído do `node:sqlite` no Node 24, não uma falha. Não suprima.
 | Nome do pacote | `showrunner-studio` (ver `package.json`) |
 | Branch | `main` |
 | Remote | `origin` → `https://github.com/douglas0712/showrunnerai.git` |
-| HEAD funcional | `510186636e08fe77e2b93d784ee48ba644aad84b` |
+| HEAD funcional | `cd4a84faa727e9e1a1d097bfa24a72a0cf85ccc7` |
 | Working tree | limpa |
-| Testes | 1208 / 1208 passando, 0 falhas |
+| Testes | 1308 / 1308 passando, 0 falhas |
 | Build | limpo (`✓ Compiled successfully`, 18/18 páginas) |
 | Node | v24.x (usa `node:sqlite`, experimental) |
 | Next | 15.5.15 · React 19.2.8 |
@@ -410,10 +411,22 @@ project.list_scenes
 project.get_scene
 project.replace_scenes
 project.update_scene
+
+project.generate_scene_image  o que a produção JÁ TEM
+project.generate_scene_video
+project.get_scene_media
+project.select_scene_take
 ```
 
-**Treze ferramentas.** Eram cinco antes do Passo 12; as oito de planejamento
-entraram nele — seção 22.
+**Dezessete ferramentas.** Eram cinco antes do Passo 12; as oito de planejamento
+entraram nele (seção 22) e as **quatro** de execução entraram no Passo 13
+(seção 23). Nenhuma foi removida.
+
+As quatro do Passo 13 nunca recebem identificador nosso. `project.*` de execução
+é endereçada por **posição**: número da cena, tipo, número da tentativa. Não há
+`sceneId`, `mediaId`, `assetId`, `jobId`, `sourceAssetId`, `takeNumber` de
+escolha livre, `workflowId`, `aspectRatio` nem `duration` em schema nenhum —
+cada um desses seria um campo que o modelo aprende a preencher.
 
 Definidos em `lib/server/agent/tools/handlers/`.
 
@@ -505,7 +518,7 @@ em qual projeto gerar seria um agente sem fronteira.
 SQLite via `node:sqlite` (zero dependências novas), em `runtime/showrunner.db`.
 Migrações versionadas por `PRAGMA user_version`, em `lib/server/domain/db.js`.
 
-**`ESQUEMA_ATUAL = 9`** (nove migrações aplicadas).
+**`ESQUEMA_ATUAL = 10`** (dez migrações aplicadas).
 
 | # | Migração | Entidade |
 | --- | --- | --- |
@@ -517,6 +530,7 @@ Migrações versionadas por `PRAGMA user_version`, em `lib/server/domain/db.js`.
 | 7 | `generation_jobs` | **o livro-razão durável de gerações** (Passo 10.2) |
 | 8 | `project_documents`, `document_chunks`, `agent_message_documents` | **o material de referência do Project** (Passo 11) |
 | 9 | `production_plans`, `production_plan_sources`, `production_scripts`, `production_scenes` | **o planejamento da produção** (Passo 12) |
+| 10 | `production_scene_media`, `production_scene_media_selections` | **a mídia de uma cena: takes e escolha** (Passo 13-A) |
 
 Tabelas `STRICT`, chaves estrangeiras ligadas, `CHECK` gerado a partir dos
 vocabulários que já existem em `lib/storyboard.js` e `lib/approval.js` — não há
@@ -644,6 +658,95 @@ mídia aqui.
 REFERÊNCIA — ver seção 22), prompt de modelo (descrição visual não é prompt de
 ComfyUI, e escrever um agora congelaria o gerador de hoje dentro do plano),
 Asset, job, workflow, e versão.
+
+### `production_scene_media` · `production_scene_media_selections` (Passo 13-A)
+
+A ponte entre a cena DESCRITA (migração 9) e a mídia REAL (migração 1). Migração
+**10**, aditiva.
+
+```
+production_scenes
+  └─ production_scene_media               os takes: tentativas numeradas
+       ├─ image take 1 → Asset A
+       ├─ image take 2 → Asset B          ← production_scene_media_selections
+       └─ video take 1 → Asset C          ← production_scene_media_selections
+```
+
+| Tabela | Campos que importam |
+| --- | --- |
+| `production_scene_media` | `id` PK · `sceneId` (CASCADE) · `kind` (CHECK, de `ASSET_KINDS`) · `takeNumber` (CHECK ≥ 1) · `generationJobId` nullable (SET NULL) · `assetId` nullable (SET NULL) · timestamps · **`UNIQUE (sceneId, kind, takeNumber)`** |
+| `production_scene_media_selections` | `sceneId` (CASCADE) · `kind` (CHECK) · `mediaId` · `updatedAt` · **`PRIMARY KEY (sceneId, kind)`** · **`FOREIGN KEY (mediaId, sceneId, kind)` → `production_scene_media (id, sceneId, kind)`** CASCADE |
+
+**Um take é uma LINHA, não uma coluna na cena.** É a decisão inteira: uma coluna
+`imageAssetId` em `production_scenes` transformaria "gere de novo" numa
+sobrescrita, e a imagem que o usuário talvez preferisse deixaria de existir no
+instante em que ele pedisse uma alternativa. É a mesma razão pela qual a `scenes`
+da migração 1 — que tem `image` e `videoId` como colunas — não serve aqui.
+
+**A numeração é por cena E por tipo, e é do servidor.** A primeira imagem e o
+primeiro vídeo de uma cena são ambos o take 1. O próximo número é
+`MAX(takeNumber) + 1` lido e gravado dentro da mesma transação; a corrida que
+sobra esbarra no `UNIQUE` e vira erro, em vez de virar dois takes 3. Quem chama
+nunca escolhe o número.
+
+**A chave estrangeira da seleção é COMPOSTA, e isso é o ponto.** As duas regras
+que importam não são "o take existe": são "o take é DESTA cena" e "o take é
+DESTE tipo". Uma FK simples em `mediaId` garantiria só metade da primeira, e a
+cena 4 poderia acabar com a imagem da cena 7, ou com um vídeo escolhido como
+imagem. Repetindo `sceneId` e `kind` dentro da própria chave, as duas viram
+estrutura: a linha errada é **impossível de gravar**, inclusive por SQL escrito à
+mão. O índice `production_scene_media_endereco (id, sceneId, kind)` existe só
+para ser a chave-pai dessa FK.
+
+**`PRIMARY KEY (sceneId, kind)`** diz "no máximo uma imagem escolhida e um vídeo
+escolhido por cena", e diz por estrutura. Uma coluna `selected` na tabela de
+mídia permitiria dizer isso duas vezes.
+
+**O que estas tabelas NÃO guardam**, e por quê:
+
+- **estado de geração** — é do `generation_jobs`. A situação de um take é
+  DERIVADA (`sceneTakeState`): com Asset é `done`, sem Asset vale o que o
+  trabalho dele vale agora. Uma coluna aqui divergiria no primeiro reinício;
+- **linhagem** — `derivedFromAssetId` continua no Asset e no livro-razão. Não há
+  segunda fonte;
+- **nada que já seja do Asset** — caminho, arquivo, URL, MIME, prompt, seed,
+  modelo, dimensões;
+- **nada que já seja do descriptor** — workflow, provider, nó, formato.
+
+**A cena não guarda `projectId`, e a mídia também não.** Ela pertence a uma cena,
+a cena a um roteiro, o roteiro a um projeto. Que o Asset e o job sejam do MESMO
+projeto da cena é regra de domínio, conferida no repositório — a chave
+estrangeira garante que eles existem, não de quem são.
+
+**`SET NULL` nas duas referências, e não `CASCADE`:** apagar um Asset é faxina de
+mídia, e faxina de mídia não pode demolir o planejamento. O take permanece,
+vazio, dizendo a verdade — esta tentativa existiu e o arquivo dela não está mais
+aqui. (Na prática o Asset de um trabalho **concluído** nem pode ser apagado
+sozinho: `generation_jobs.assetId` é `NO ACTION`. O buraco existe só para mídia
+sem job concluído, como a que o backfill registra do disco.)
+
+### `replaceProductionScenes` é recusado quando a cena já tem mídia (Passo 13-A.1/A.2)
+
+`replaceProductionScenes` apaga as cenas e as reinsere com `id` novo. Era
+inofensivo enquanto uma cena era só texto; desde a migração 10 não é — a mídia
+pende do `id` da cena, e o CASCADE levaria takes e seleções junto, em silêncio.
+
+A regra: **se qualquer cena do roteiro tem mídia, a substituição em bloco é
+recusada**, com mensagem acionável e sem vazar identificador. Não há `force`, e
+não há preservação automática por ordinal — depois de uma reescrita, a cena 4
+pode ser outra cena, e reatar a imagem antiga ao número 4 colaria a mídia errada
+no lugar certo, que é um defeito que passa despercebido por parecer correto.
+
+A guarda roda **dentro** do `BEGIN IMMEDIATE`, e essa ordem é a correção do
+13-A.2: fora da transação havia uma janela real — a guarda encontrava zero
+takes, outra conexão gravava um, e o DELETE seguinte o levava junto. `BEGIN
+IMMEDIATE` toma o lock de escrita na hora, então entre "não há mídia" e "as cenas
+foram apagadas" não cabe mais nada. Há teste com **duas conexões SQLite reais**
+provando que uma escrita concorrente nessa janela recebe `database is locked`.
+
+A ordem dentro da transação também importa: a mídia é conferida **antes** da
+duração, então a mensagem de proteção vence a de duração inválida — recusar por
+duração ensinaria que basta acertar os segundos para a mídia sumir.
 
 ### A tabela `scenes` da migração 1 NÃO foi evoluída
 
@@ -890,7 +993,7 @@ Nomes de arquivos de modelo exigidos estão nos descriptors. **Nenhuma credencia
 
 ### Testes determinísticos — `npm test`
 
-**1208 testes, 1208 passando, 0 falhando.** 70 arquivos `tests/*.test.mjs`, com
+**1308 testes, 1308 passando, 0 falhando.** 75 arquivos `tests/*.test.mjs`, com
 `node:test`, sem dependências de teste. Sem rede, sem GPU, sem runtime externo, sem
 credencial. Vários são regressões de falhas reais e trazem a causa documentada
 no cabeçalho: se um quebrar, o refactor está errado, não o teste.
@@ -1325,6 +1428,47 @@ corromperia os fixtures** e os testes falhariam de forma misteriosa. Uma linha d
 `.gitattributes` (`tests/fixtures/documents/*.pdf binary`) resolve. Não foi feito
 porque estava fora do conjunto aprovado para aquele commit.
 
+### O. A duração de um clipe é o padrão técnico do pipeline
+
+`ProductionScene.durationSeconds` é duração **narrativa** — quanto daquele trecho
+do filme a cena ocupa. A duração de um clipe é outra grandeza: quanto o gerador
+produz de uma vez. As duas são números em segundos e **não** são a mesma coisa,
+e o Passo 13-E decidiu não convertê-las: nada é dividido, arredondado, esticado
+ou encolhido. O clipe usa o padrão do pipeline (6 s hoje).
+
+Com o pipeline atual, de clipes curtos, uma cena narrativa mais longa **pode**
+vir a ser realizada com mais de um clipe. **Quantos, e de que duração, não está
+decidido** — é decisão da entidade **Shot**, que ainda não existe. Não há regra
+registrada sobre isso, e inventar uma aqui seria escolher sem medir.
+
+### P. `aspectRatio` do plano é texto livre, e o suporte é conferido ao gerar
+
+`production_plans.aspectRatio` é campo de PRODUÇÃO, não de gerador — o domínio
+não conhece capacidade de workflow. Um valor fora das oito proporções que os
+descriptors declaram só é descoberto na primeira geração, e aí a recusa é
+explícita e não destrói nada (`exigirAspectoSuportado` roda antes do livro-razão
+e antes do take). O erro aparece tarde, mas aparece.
+
+### Q. Mudar o `aspectRatio` do plano não regenera a mídia já feita
+
+O formato é resolvido a cada geração. Alterar o plano depois deixa a produção com
+cenas em dois formatos até serem regeradas, e **nada avisa**.
+
+### R. A desambiguação de "a outra" é persona, não estrutura
+
+"Use a segunda" funciona e está provado. "Use a outra", com três tentativas, é
+meio pedido — a persona manda listar e perguntar, e no gate ela se comportou
+assim, mas **nada no servidor impede** o modelo de escolher em silêncio. Não há
+parser de linguagem natural no servidor, e não deve haver.
+
+### S. `selectSceneTake` do domínio é primitiva permissiva
+
+Ela move o ponteiro e não exige que o take esteja pronto. A política "só take
+concluído, com Asset" é aplicada pela **tool pública**
+(`project.select_scene_take`). A primitiva continua permissiva de propósito: o
+produto precisa saber representar situações honestas — uma seleção cujo Asset
+sumiu, por exemplo. Hoje a tool é o único escritor de escolha deliberada.
+
 ### N. O estúdio ainda depende do laço da tela para progredir
 
 O acompanhamento server-side do Passo 9 é ligado a uma **conversa** — ele existe
@@ -1365,6 +1509,12 @@ comportamento esperado, não escondido.
 | **—** — Quality Gate Core Audiovisual E2E (manual, no produto real) | ✅ | seção 20 |
 | **—** — Referência natural a Asset → I2V com linhagem | ✅ | `cb7c5e0` |
 | **12** — Production Planning (plano, roteiro e cenas persistentes) | ✅ | `5101866` |
+| **13-A** — Scene Media Domain (takes e seleção, migração 10) | ✅ | `3b04848` |
+| **13-B** — Image Takes (`project.generate_scene_image`) | ✅ | `3c18d9f` |
+| **13-C** — Video Takes / I2V (`project.generate_scene_video`) | ✅ | `90aa84a` |
+| **13-D** — Selection & Agent UX (ler a mídia da cena e escolher) | ✅ | `0efe52a` |
+| **13-E** — Production Generation Parameters (formato do plano) | ✅ | `cc0d7bb` |
+| **13-F** — Quality Gate Final do Passo 13 (86 verificações) | ✅ | `cd4a84f` |
 
 ---
 
@@ -2728,56 +2878,326 @@ versão do esquema. Dois merecem nota:
 
 ---
 
-## 23 · O que está aberto, e o próximo passo
+## 23 · PASSO 13 — PRODUCTION EXECUTION ✅
 
-### O estado, em seis linhas
+O Passo 12 fez o plano existir. O **Passo 13 o fez virar mídia** — e mídia que
+pertence a um lugar, não à memória da conversa.
+
+```
+Production Scene
+  → image take 1 → Asset A
+  → image take 2 → Asset B        ← o usuário escolhe esta
+  → project.generate_scene_video
+  → o SERVIDOR resolve a imagem escolhida
+  → I2V real
+  → video take 1 → Asset C, derivado de B
+```
+
+Seis subpassos, seis commits, todos com Quality Gate próprio no fim.
+
+| Subpasso | O que entrou | Commit |
+| --- | --- | --- |
+| **13-A** | Scene Media Domain — takes e seleção (migração 10) | `3b04848` |
+| **13-B** | Image Takes — `project.generate_scene_image` | `3c18d9f` |
+| **13-C** | Video Takes / I2V — `project.generate_scene_video` | `90aa84a` |
+| **13-D** | Selection & Agent UX — ler a mídia e escolher | `0efe52a` |
+| **13-E** | Production Generation Parameters — formato do plano | `cc0d7bb` |
+| **13-F** | Quality Gate Final — 86 verificações, 0 falhas | `cd4a84f` |
+
+`ESQUEMA_ATUAL = 10` · **1308 testes, 1308 passando** · build 18/18.
+
+---
+
+### 13-A · Scene Media Domain
+
+Duas tabelas — `production_scene_media` e `production_scene_media_selections` —
+descritas em detalhe na **seção 7**, inclusive a chave estrangeira composta que
+torna "a cena 4 escolheu a imagem da cena 7" impossível de gravar.
+
+O que vale repetir aqui, porque é a decisão de produto:
+
+- **regenerar cria um take NOVO**; o anterior nunca é sobrescrito;
+- **imagem e vídeo têm numeração independente** — a primeira de cada é o take 1;
+- **`takeNumber` é do servidor**, alocado em transação, com o `UNIQUE` como rede;
+- **o estado da geração continua em `generation_jobs`** — a situação de um take é
+  derivada, nunca guardada;
+- **a linhagem continua no Asset e no livro-razão** — `production_scene_media`
+  não duplica nem estado nem linhagem;
+- **`replaceProductionScenes` é recusado quando já existe mídia**, com a guarda
+  rodando sob `BEGIN IMMEDIATE` para que nada caiba entre a verificação e o
+  `DELETE` das cenas (13-A.1 e 13-A.2 — ver seção 7).
+
+### 13-B · Image Takes
+
+`project.generate_scene_image { ordinal, prompt }`.
+
+```
+Production Scene
+  → generation/facade (a MESMA de og.generate_image)
+  → generation_job
+  → image take, já ligado ao job
+  → Job Autonomy
+  → Asset
+  → take.assetId
+```
+
+**A ordem é a decisão.** O take nasce no gancho `aoRegistrar`, na janela entre o
+registro durável do trabalho e a submissão ao executor. As duas alternativas
+ingênuas são piores, cada uma de um jeito: take primeiro deixaria um take vazio
+se a submissão falhasse; geração primeiro deixaria um trabalho real na GPU sem
+lugar nenhum. Um take **nunca** fica sem rastro — se a submissão falha, ele
+continua apontando para o job, e o desfecho mora em `generation_jobs.state`.
+
+**A primeira imagem concluída vira a escolhida.** Um take posterior **não**
+substitui a escolha — regenerar oferece alternativa, e trocar por baixo
+transformaria "quero ver outra opção" em "perdi a que eu tinha aprovado".
+
+**O vínculo mora em `completeGenerationJob`**, que é o único evento durável por
+onde passam os três caminhos de conclusão: o acompanhamento vivo, a consulta da
+tela e a reconciliação depois de um reinício. Pendurá-lo em quem começou o faria
+existir só no caminho feliz.
+
+O Agent não escolhe `projectId`, `sceneId`, `takeNumber`, `jobId`, `assetId`,
+`workflowId`, `modelId` nem provider. Diz qual cena e o que se vê.
+
+### 13-C · Video Takes / I2V
+
+`project.generate_scene_video { ordinal, prompt }`.
+
+```
+Scene
+  → selected image
+  → o SERVIDOR resolve sourceAssetId
+  → startVideoGeneration (a MESMA de og.generate_video)
+  → I2V
+  → generation_job
+  → video take
+  → Asset
+```
+
+**`sourceAssetId` NÃO vem do modelo.** É a regra inteira do subpasso. A geração
+avulsa recebe do modelo qual imagem animar — funciona numa conversa, onde "anime
+essa imagem" tem antecedente óbvio. Numa produção não funciona: perguntado qual é
+a imagem da cena 1, o modelo responde pela memória, e a memória erra exatamente
+depois de uma regeneração que ele não viu.
+
+**Sem imagem escolhida válida, recusa** — e **nunca** um t2v silencioso. Os
+quatro casos (sem seleção, take sem mídia, Asset apagado, Asset do tipo errado)
+recebem a mesma frase, porque para quem pediu são a mesma situação e têm a mesma
+saída. Um t2v devolveria um vídeo bonito que o usuário aceitaria, e que não é a
+cena que ele aprovou.
+
+**Primeiro vídeo concluído vira o escolhido; um novo não troca em silêncio** —
+mesma política da imagem.
+
+**Linhagem, nos dois lugares:**
+
+```
+video Asset.derivedFromAssetId    === selected image Asset
+generation_jobs.derivedFromAssetId === selected image Asset   (gravado ANTES da submissão)
+```
+
+**`minimax_h3_t2v` continua sendo o descriptor multimodal** — `t2v`, `i2v` e
+`flf` são o mesmo grafo com zero, uma ou duas imagens ligadas, porque
+`MiniMaxH3ImageToVideo` declara `first_frame` e `last_frame` como entradas
+opcionais. **Não existe `minimax_h3_i2v`**, e criar um seria um segundo pipeline
+para o mesmo modelo. O nome do descriptor é histórico.
+
+### 13-D · Selection & Agent UX
+
+`project.get_scene_media { ordinal }` e
+`project.select_scene_take { ordinal, kind, takeNumber }`.
+
+A conversa comprovada:
+
+| O usuário diz | O que acontece |
+| --- | --- |
+| "Faça outra imagem da cena 1." | nasce o take seguinte; a escolha **não** muda |
+| "Use a segunda imagem." | `get_scene_media` → `select_scene_take`; escolha = take 2 |
+| "Qual imagem está selecionada?" | `get_scene_media`; a resposta vem do **banco** |
+| "Anime essa versão." | o vídeo usa a imagem escolhida **agora** |
+
+`get_scene_media` devolve, por tipo: `total`, `selectedTakeNumber` e a lista de
+`{ takeNumber, state, selected }`. O `state` é derivado (`sceneTakeState`) do
+livro-razão e da existência do Asset — **sem palavra nova**. A resposta é
+limitada por `MAX_TAKES_POR_CENA`, que é o mesmo número do domínio, e não um
+segundo teto que possa divergir.
+
+**Escolher é mover um ponteiro:** não apaga take, não move Asset, não gera nada;
+imagem e vídeo são independentes; dá para voltar atrás a qualquer momento. A
+**tool pública** só aceita take **pronto** — escolher um que ainda gera faria a
+cena apontar para o nada, e escolher um que falhou apontaria para algo que nunca
+vai existir. (A primitiva de domínio continua permissiva — limitação S.)
+
+**Ambiguidade é comportamento de persona, não garantia estrutural** (limitação
+R). "Use a segunda" é claro e é executado; "use a outra" com três tentativas a
+persona manda listar e perguntar. Nada disso é imposto pelo servidor, e não deve
+ser: um parser de linguagem natural no servidor seria a arquitetura errada.
+
+### 13-E · Production Generation Parameters
+
+**`ProductionPlan.aspectRatio` é resolvido server-side** e usado pelas duas
+gerações de cena. O modelo não escolhe formato — se pudesse, escolheria por cena,
+e bem: um plano geral pede 16:9, um close pede 9:16. O resultado seria uma
+produção com metade das cenas em cada, cada pedaço plausível sozinho e o conjunto
+impossível de montar. **Um filme tem um formato**, decidido uma vez, no plano.
+
+**Formato não suportado recusa antes de criar job ou take** —
+`exigirAspectoSuportado` pergunta ao **descriptor** (`descriptor.aspects`), não a
+uma tabela que a facade conheça. **Nunca** há fallback para 16:9: silenciar aqui
+entregaria a produção inteira no formato errado, descoberta só na montagem.
+
+**`ProductionScene.durationSeconds` é duração NARRATIVA** e **não** é convertida
+em duração de clipe. Ver limitação O — inclusive o que deliberadamente **não**
+foi decidido sobre Shot.
+
+O modelo também não escolhe `duration`, `resolution`, `model` nem provider.
+
+---
+
+### 23.1 · O QUALITY GATE DO PASSO 13 (13-F)
+
+Executado no produto real, com Hermes, ComfyUI e GPU. **86 verificações, 0
+falhas, nenhum bug funcional encontrado, nenhuma linha de código alterada.**
+
+Harness versionado e autossuficiente: `tests/quality-gate-13.mjs`. Ele **cria a
+própria produção** — id derivado do relógio —, para que "o take 2" signifique a
+mesma coisa a cada rodada.
+
+**A produção do gate:** plano em **9:16**, cena 1 com `durationSeconds = 45`,
+nascida sem mídia.
+
+**Os cinco turnos, conversados de verdade:**
+
+| # | Pedido | Tools | Turno |
+| --- | --- | --- | --- |
+| 1 | "Gere uma imagem para a cena 1." | `get_scene → generate_scene_image` | 7,8 s |
+| 2 | "Faça outra imagem da cena 1, mais sombria." | `get_scene_media → generate_scene_image` | 9,3 s |
+| 3 | "Use a segunda imagem." | `get_scene_media → select_scene_take` | 7,1 s |
+| 4 | "Qual imagem está selecionada?" | `get_scene_media` | 5,4 s |
+| 5 | "Anime essa versão." | `get_scene_media → generate_scene_video` | 9,7 s |
+
+**O resultado:**
+
+```
+image take 1 → Asset A
+image take 2 → Asset B   ← selected image
+video take 1 → Asset C   ← selected video
+```
+
+**As provas de linhagem:**
+
+```
+Asset            C.derivedFromAssetId === B      ✔    (!== A ✔)
+generation_jobs     derivedFromAssetId === B      ✔
+A e B não derivam de nada                         ✔
+```
+
+**A prova do mecanismo I2V**, no `/history` do ComfyUI:
+
+```
+LoadImage: 1  ·  sr:first_frame → "showrunner/<job>_first.png"
+105:104.first_frame = ["sr:first_frame", 0]     (MiniMaxH3ImageToVideo)
+modo lido do grafo: i2v
+```
+
+**E a prova que elimina o falso positivo:** o arquivo de entrada foi baixado do
+ComfyUI e comparado por **SHA-256** com os Assets em disco.
+
+```
+first_frame enviado ao ComfyUI: 41269fced9464447 (197.916 bytes)
+bate com Asset A? não
+bate com Asset B? SIM
+```
+
+Os pixels que foram para a GPU são, byte a byte, os da imagem **escolhida**. Um
+vídeo parecido com a imagem não seria prova — um t2v com o mesmo prompt também
+pareceria.
+
+**Formato e duração, no mesmo render:**
+
+```
+grafo da imagem: 9:16        grafo do vídeo: 9:16
+arquivo de B: 768×1376 (pedido 0,563 · real 0,558)
+
+Scene.durationSeconds (narrativa) = 45
+duração submetida ao gerador       =  6      ← 45 não foi convertido
+```
+
+**Job Autonomy:** os turnos levaram 5–10 s; as gerações, ~28 s (imagem) e ~201 s
+(vídeo). Os turnos 1 e 5 terminaram muito antes das respectivas GPUs, os jobs
+concluíram sozinhos, e os Assets chegaram aos takes depois. **Ninguém precisou
+perguntar "e aí?".**
+
+**Persistência:** bridge fechada, `closeDatabase()`, registro de acompanhamento
+em memória apagado, tudo reaberto do zero. `get_scene_media` devolveu **JSON
+idêntico** — takes, seleções, Assets e linhagem atravessaram o reinício.
+
+**Replace protection:** com mídia na cena, `project.replace_scenes` foi recusado
+com a mensagem de proteção e **sem vazar identificador**; takes, seleções, Assets
+e ids das cenas ficaram byte a byte idênticos antes e depois.
+
+**Public surface:** os eventos e as respostas dos cinco turnos foram varridos
+contra os 12 identificadores reais da execução (assetIds A/B/C, mediaIds,
+`sceneId`, `generationJobId`s, nomes de arquivo, `promptId`) e 13 padrões
+(`sourceAssetId`, `derivedFromAssetId`, `workflowId`, `ideogram`, `minimax`,
+`comfy`, `LoadImage`, `first_frame`, `hermes`, `session_id`, `enabled_toolsets`,
+`runtime/`, `/api/media/`). **Nenhum apareceu.** Os nomes canônicos das tools
+aparecem; os aliases do runtime, não.
+
+---
+
+## 24 · O que está aberto, e o próximo passo
+
+### O estado, em sete linhas
 
 ```
 Passos 1–10 CORE ...................... ✅
 Passo 11 · Document Ingestion ......... ✅
 Thread Continuity ..................... ✅
-I2V com linhagem comprovada ........... ✅
-Quality Gate · Core Audiovisual E2E ... ✅
+Quality Gate Audiovisual .............. ✅
 Passo 12 · Production Planning ........ ✅
+Passo 13 · Production Execution ....... ✅
 
 10.6 · Operational Hardening .......... ⏸ backlog
 ```
 
-### NEXT — PASSO 13: PRODUCTION EXECUTION
+### NEXT — PASSO 14: PRODUCTION AUDIO
 
-O Passo 12 fez o plano existir. O Passo 13 é fazê-lo virar mídia.
+O Passo 13 fez a cena virar imagem e vídeo. O **Passo 14 é a voz**.
 
-A direção, e só a direção:
+**Primeiro subpasso planejado: 14-A — Narration Domain.**
+
+A direção conceitual, e só a direção:
 
 ```
-Production Scene
-  → mídia da cena
-  → imagem
-  → vídeo
-  → Asset associado à Scene
+Production Scene.narration
+  → representação durável da produção de voz/áudio
+  → preparação para TTS
 ```
 
-**Ele ainda não foi começado, e a arquitetura dele ainda não foi decidida.** Este
-documento registra o rumo, não o desenho: inventar aqui a forma final da ligação
-Scene → Asset seria escolher, sem medir, a decisão mais cara do passo.
+**A arquitetura completa do Passo 14 NÃO foi decidida, e este documento não a
+decide.** Registrar aqui a forma final de um take de áudio, ou a relação entre
+narração e clipe, seria escolher sem medir — foi exatamente esse cuidado que
+manteve o Passo 13 pequeno em cada subpasso.
 
 O que já está no lugar e não precisa ser inventado:
 
-- **as cenas são reais e endereçáveis** — `production_scenes`, com posição,
-  duração e descrição visual (seção 22);
-- **o pipeline de geração é genérico e durável** — `generation/facade.js`, o
-  livro-razão `generation_jobs`, a autonomia do Passo 9 e a recuperação de
-  arranque do Passo 10;
-- **a linhagem entre Assets é real e verificada** — `derivedFromAssetId` no
-  Asset e no livro-razão, provado no produto (seção 20);
-- **a descrição visual de uma cena NÃO é um prompt de modelo**, e isso foi
-  decisão do Passo 12. Traduzir direção em prompt é trabalho do Passo 13, e é
-  onde ele deve morar.
+- **a narração já é estado do Project** — `production_scenes.narration` existe
+  desde o Passo 12, separada da descrição visual justamente porque são dois
+  destinos diferentes: uma vira voz, a outra vira imagem (seção 22);
+- **a forma de uma cena ter mídia numerada e escolhível já existe** — takes e
+  seleção, `kind` como vocabulário fechado (seção 7). Se áudio for um `kind`,
+  é uma decisão a tomar, não uma estrutura a construir;
+- **o pipeline de geração é genérico e durável** — facade, livro-razão,
+  autonomia do Passo 9 e recuperação do Passo 10 não sabem o que é imagem;
+- **a duração narrativa da cena está lá, intocada** — e a relação dela com a
+  duração real da voz é uma das perguntas que o Passo 14 vai ter de responder.
 
-As perguntas em aberto que o Passo 13 vai ter de responder — e que este
-documento **não** responde: como uma Scene se liga ao Asset dela; o que acontece
-quando a cena muda depois de gerada; se a geração é por cena ou em lote; e como
-o backpressure entra nisso (limitação J).
+As perguntas em aberto que o Passo 14 vai ter de responder — e que este documento
+**não** responde: se áudio é um `kind` de take ou outra entidade; se a narração
+gerada tem tentativas como imagem e vídeo; o que acontece quando a voz é mais
+longa que a cena planejada; e qual a relação disso com Shot e com a montagem.
 
 ### As frentes que continuam abertas
 
@@ -2786,7 +3206,8 @@ frente exige — a ordem é decisão de produto.
 
 | Frente | O que ela exige, concretamente |
 | --- | --- |
-| **Passo 13 — Production Execution** | **o próximo.** Scene → mídia → Asset ligado à Scene. As cenas já existem e são endereçáveis; a ligação Scene → Asset ainda não foi desenhada |
+| **Passo 14 — Production Audio** | **o próximo.** `Scene.narration` → voz durável → TTS. Ver acima |
+| **Shot — a decupagem** | a cena narrativa é mais longa que um clipe. Quantos planos, de que duração, e como se ordenam — nada decidido (limitação O) |
 | **10.6 — Operational Hardening** | fila própria, backpressure, concorrência controlada, cancelamento seletivo, leases/multi-worker (limitação J) |
 | **OCR / PDF escaneado** | fora do Passo 11 por decisão. Hoje um PDF sem texto é recusado com honestidade |
 | **Conhecimento / RAG** | limitação G. Os chunks do Passo 11 não são isso |
@@ -2795,7 +3216,7 @@ frente exige — a ordem é decisão de produto.
 | **Reordenar e apagar cenas** | hoje as duas exigem `project.replace_scenes`. Uma `reorder_scene` precisa decidir o que acontece com os ordinais das outras; uma `delete_scene`, o que fazer com o buraco no `1..n` |
 | **Versões de plano, roteiro e cenas** | só vale a pena com uma forma de escolher entre elas. Ver a limitação G-bis |
 | **UI de Production Planning** | plano, roteiro e cenas hoje só existem pela conversa |
-| **Montagem final** | juntar os planos aprovados numa peça só |
+| **Montagem final** | juntar os planos aprovados numa peça só. Agora há o que juntar: cada cena tem um vídeo ESCOLHIDO (seção 23) |
 | **Multi-provider / nuvem** | hoje só ComfyUI local |
 | **WhatsApp e outros canais** | a arquitetura permite (toda decisão mora no servidor), nada foi construído — limitação I |
 | **Research Lab** | — |
@@ -2808,7 +3229,7 @@ Duas coisas que não são frentes, mas continuam pendentes e são baratas:
 
 ---
 
-## 24 · NON-NEGOTIABLE ARCHITECTURE RULES
+## 25 · NON-NEGOTIABLE ARCHITECTURE RULES
 
 Cada regra existe porque a alternativa já causou, ou causaria, um defeito
 concreto. Não são preferência de estilo.
@@ -2944,7 +3365,7 @@ concreto. Não são preferência de estilo.
 
 ---
 
-## 25 · Mapa de arquivos
+## 26 · Mapa de arquivos
 
 Só o que ajuda a navegar. Não é catálogo do repositório.
 
@@ -3010,13 +3431,16 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `lib/server/agent/tools/handlers/productionPlan.js` | `project.get_production_plan` · `project.save_production_plan` — e as conferências que as três famílias de planejamento compartilham |
 | `lib/server/agent/tools/handlers/productionScript.js` | `project.get_script` · `project.save_script` |
 | `lib/server/agent/tools/handlers/productionScenes.js` | `project.list_scenes` · `project.get_scene` · `project.replace_scenes` · `project.update_scene` |
+| `lib/server/agent/tools/handlers/productionSceneMedia.js` | `project.generate_scene_image` (Passo 13-B) — a ÚNICA família de produção que alcança `generation/facade` |
+| `lib/server/agent/tools/handlers/productionSceneVideo.js` | `project.generate_scene_video` (Passo 13-C) — e a resolução server-side da imagem escolhida |
+| `lib/server/agent/tools/handlers/productionSceneTakes.js` | `project.get_scene_media` · `project.select_scene_take` (Passo 13-D) |
 | `lib/server/agent/tools/jobWatch.js` | **o acompanhamento**: single-flight, laço, teto, ciclo de vida, associação |
 
 ### Geração
 
 | Caminho | Papel |
 | --- | --- |
-| `lib/server/generation/facade.js` | API de alto nível; onde o Asset nasce e onde o livro-razão é escrito |
+| `lib/server/generation/facade.js` | API de alto nível; onde o Asset nasce e onde o livro-razão é escrito. Também o gancho `aoRegistrar` (entre registrar e submeter) e a conferência de formato contra o descriptor |
 | `lib/server/generation/reconcile.js` | **a recuperação de arranque**: `/history` + `/queue`, finalização, acompanhamento retomado, `orphaned` |
 | `lib/server/generation/jobStates.js` | reexportação do vocabulário do domínio (nada é decidido aqui) |
 | `lib/server/generation/comfyJobState.js` | tradução do estado do ComfyUI → estado do Showrunner, tabela fechada |
@@ -3077,7 +3501,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 | Caminho | Papel |
 | --- | --- |
-| `tests/*.test.mjs` | 70 arquivos, 1208 testes, na suíte |
+| `tests/*.test.mjs` | 75 arquivos, 1308 testes, na suíte |
 | `tests/agent-job-autonomy.test.mjs` | o Passo 9 inteiro — 40 testes |
 | `tests/agent-event-surface.test.mjs` | a fronteira pública dos eventos — 12 testes |
 | `tests/agent-turn-anchor.test.mjs` | a âncora do turno (10.0) — 18 testes |
@@ -3097,9 +3521,19 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 | `tests/domain-production.test.mjs` | o planejamento no domínio, a migração 8→9 e a `scenes` legada intacta (Passo 12) — 42 testes |
 | `tests/agent-production-tools.test.mjs` | as oito ferramentas de planejamento e a fronteira delas — 33 testes |
 | `tests/agent-production-planning.test.mjs` | o caminho inteiro: documento → plano → roteiro → cenas → edição → reload → zero mídia — 5 testes |
+| `tests/domain-scene-media.test.mjs` | a mídia de cena no domínio, a migração 9→10, a guarda do replace e a race com duas conexões (13-A) — 37 testes |
+| `tests/agent-scene-image.test.mjs` | a imagem de uma cena, do pedido ao Asset (13-B) — 20 testes |
+| `tests/agent-scene-video.test.mjs` | a imagem escolhida vira vídeo, com linhagem (13-C) — 18 testes |
+| `tests/agent-scene-takes.test.mjs` | ler o que a cena tem e escolher o take (13-D) — 12 testes |
+| `tests/agent-scene-parameters.test.mjs` | formato do plano na geração, e a duração que NÃO atravessa (13-E) — 13 testes |
 | `tests/fixtures/documents/` | quatro PDFs mínimos versionados + o `gerar.mjs` que os produz |
 | `tests/smoke-hermes-real.mjs` | smoke real com Hermes — **fora** da suíte |
 | `tests/smoke-i2v-real.mjs` | smoke real de i2v — **fora** da suíte |
+| `tests/smoke-scene-image-real.mjs` | a imagem de uma cena, com runtime e GPU reais — **fora** da suíte |
+| `tests/smoke-scene-video-real.mjs` | o vídeo de uma cena, com prova de I2V no grafo — **fora** da suíte |
+| `tests/smoke-scene-takes-real.mjs` | a conversa de quatro turnos sobre tentativas — **fora** da suíte |
+| `tests/smoke-scene-aspect-real.mjs` | o formato do plano chegando ao gerador — **fora** da suíte |
+| `tests/quality-gate-13.mjs` | **o Quality Gate do Passo 13**, 86 verificações — **fora** da suíte |
 
 ### Documentação
 
@@ -3113,7 +3547,7 @@ Só o que ajuda a navegar. Não é catálogo do repositório.
 
 ---
 
-## 26 · Convenções que valem a pena preservar
+## 27 · Convenções que valem a pena preservar
 
 - **Injeção de dependência no estilo da casa:** último parâmetro com default
   (`db = database()`, `root = RUNTIME_ROOT`, `deps = {}`). É o que torna tudo

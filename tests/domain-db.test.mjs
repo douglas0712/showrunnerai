@@ -158,10 +158,20 @@ test('o esquema recusa um tipo de asset fora do vocabulário', () => {
     VALUES ('p1', 'P', '', '16:9', 1, 1)
   `).run();
 
+  // `audio` passou a ser aceito no esquema 12 — ver a migração 12 e
+  // `tests/domain-audio-infrastructure.test.mjs`. O CHECK continua fechado para
+  // qualquer palavra fora do vocabulário.
   assert.throws(() => db.prepare(`
     INSERT INTO assets (id, projectId, kind, status, createdAt)
-    VALUES ('a1', 'p1', 'audio', 'pendente', 1)
+    VALUES ('a1', 'p1', 'texto', 'pendente', 1)
   `).run(), /CHECK|constraint/i);
+
+  // E o que o esquema 12 acrescentou, ele aceita de verdade.
+  db.prepare(`
+    INSERT INTO assets (id, projectId, kind, status, createdAt)
+    VALUES ('a_audio', 'p1', 'audio', 'pendente', 1)
+  `).run();
+  assert.equal(db.prepare('SELECT kind FROM assets WHERE id = ?').get('a_audio').kind, 'audio');
 
   db.close();
 });

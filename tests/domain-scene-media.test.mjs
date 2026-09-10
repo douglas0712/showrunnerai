@@ -213,8 +213,13 @@ test('G. um tipo que não é image nem video é recusado — no domínio e no ba
     VALUES ('media_audio', ?, 'audio', 1, NULL, NULL, ?, ?)
   `).run(take.sceneId, agora, agora), /CHECK|constraint/i);
 
-  // E o vocabulário é o do Asset, não um segundo.
-  assert.deepEqual([...SCENE_MEDIA_KINDS], [...ASSET_KINDS]);
+  // E o vocabulário desta pipeline NÃO é o do Asset. Era, até o PASSO 14-C1 —
+  // e o alias foi exatamente o que teria feito `audio` entrar aqui de graça no
+  // dia em que virou tipo físico. A pipeline visual é image|video, e o áudio da
+  // cena é um PAPEL, em `production_scene_audio_takes`.
+  assert.deepEqual([...SCENE_MEDIA_KINDS], ['image', 'video']);
+  assert.equal(ASSET_KINDS.includes('audio'), true, 'o Asset ganhou audio no 14-C1');
+  assert.equal(SCENE_MEDIA_KINDS.includes('audio'), false, 'a pipeline visual NÃO ganhou');
 
   db.close();
 });

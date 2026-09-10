@@ -29,7 +29,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
-  ASSET_KINDS, AUDIO_ROLES, DomainError, ESQUEMA_ATUAL, openDatabase, schemaVersion,
+  ASSET_KINDS, AUDIO_ROLES, DomainError, ESQUEMA_ATUAL, openDatabase,
+  SCENE_MEDIA_KINDS, schemaVersion,
 } from '../lib/server/domain/db.js';
 import { createProject, deleteProject } from '../lib/server/domain/projects.js';
 import { createAsset } from '../lib/server/domain/assets.js';
@@ -137,7 +138,7 @@ test('A · B · C · D. a migração 10 → 11 preserva tudo o que já estava no
 
   // Reabrir aplica só o que falta.
   const segunda = openDatabase(caminho);
-  assert.equal(schemaVersion(segunda), 11);
+  assert.equal(schemaVersion(segunda), ESQUEMA_ATUAL);
 
   // A. o projeto continua lá.
   assert.equal(
@@ -199,17 +200,21 @@ test('E. a migração 11 não tocou no esquema visual nem na cena do PASSO 12', 
     'sceneId', 'kind', 'mediaId', 'updatedAt',
   ]);
 
-  // E o vocabulário visual continua o que era.
-  assert.deepEqual([...ASSET_KINDS], ['image', 'video']);
+  // E o vocabulário visual continua o que era. Esta linha dizia `ASSET_KINDS`
+  // até o PASSO 14-C1 — as duas listas eram a mesma, e a igualdade escondia que
+  // a asserção que importa aqui é sobre a PIPELINE, não sobre o tipo físico.
+  assert.deepEqual([...SCENE_MEDIA_KINDS], ['image', 'video']);
 
   db.close();
 });
 
-test('F. ESQUEMA_ATUAL é 11, e as tabelas de voz são as duas esperadas', () => {
+test('F. as tabelas de voz do 14-B continuam exatamente como nasceram', () => {
   const db = banco();
 
-  assert.equal(ESQUEMA_ATUAL, 11);
-  assert.equal(schemaVersion(db), 11);
+  // O PASSO 14-C1 levou o esquema a 12 SEM tocar nestas duas: a migração 12
+  // reconstrói `assets` e `generation_jobs`, e mais nada.
+  assert.equal(schemaVersion(db), ESQUEMA_ATUAL);
+  assert.ok(ESQUEMA_ATUAL >= 11, 'a migração 11 precisa continuar existindo');
 
   assert.deepEqual(colunas(db, 'production_scene_audio_takes'), [
     'id', 'sceneId', 'role', 'takeNumber', 'sourceNarrationFingerprint',
@@ -754,19 +759,26 @@ test('ausência 2. o domínio de voz não cria Asset, job, nem arquivo', () => {
   db.close();
 });
 
-test('ausência 3. `audio` ainda não é um kind de Asset nem de geração', () => {
+test('ausência 3. `audio` é kind de Asset, e continua fora da pipeline visual', () => {
   const db = banco();
 
-  // A infraestrutura é compartilhada, mas o vocabulário dela ainda não conhece
-  // a palavra — e o 14-B não a acrescentou. Quando o 14-C o fizer, este teste
-  // cai, e a queda é a conversa: mudar `ASSET_KINDS` reconstrói o CHECK de
-  // `assets` e de `generation_jobs` só em bancos NOVOS, e bancos antigos
-  // precisam da migração que os reescreva.
-  assert.deepEqual([...ASSET_KINDS], ['image', 'video']);
+  // Este teste afirmava o contrário até o PASSO 14-C1, e previu a própria
+  // queda: o 14-C1 acrescentou `audio` ao tipo físico, com a migração 12 que
+  // reconstrói `assets` e `generation_jobs`. O que ele tranca agora é a metade
+  // que NÃO mudou.
+  assert.equal(ASSET_KINDS.includes('audio'), true);
+  const voz = createAsset({ projectId: 'proj_a', kind: 'audio', filename: 'voz.opus' }, db);
+  assert.equal(voz.kind, 'audio');
+
+  // A pipeline visual continua recusando — no domínio e no banco.
+  assert.deepEqual([...SCENE_MEDIA_KINDS], ['image', 'video']);
   assert.throws(
-    () => createAsset({ projectId: 'proj_a', kind: 'audio', filename: 'voz.wav' }, db),
-    (erro) => erro instanceof Error,
+    () => createSceneTake('proj_a', 1, { kind: 'audio' }, db),
+    (erro) => erro instanceof DomainError && /Tipo de mídia inválido/.test(erro.message),
   );
+
+  // E o take de voz do 14-B continua sendo o lugar do áudio de uma cena.
+  assert.deepEqual([...AUDIO_ROLES], ['narration']);
 
   db.close();
 });

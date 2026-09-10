@@ -19,7 +19,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 import {
-  ASSET_KINDS, ESQUEMA_ATUAL, openDatabase, schemaVersion,
+  ESQUEMA_ATUAL, GENERATION_JOB_KINDS, openDatabase, schemaVersion,
 } from '../lib/server/domain/db.js';
 import { createProject } from '../lib/server/domain/projects.js';
 import { createAsset } from '../lib/server/domain/assets.js';
@@ -264,11 +264,14 @@ test('G. estado fora do vocabulário é recusado pelo banco E pelo repositório'
 test('H. kind sai da constante de domínio que já existia, e o resto é recusado', () => {
   const { db } = cenario();
 
-  assert.deepEqual([...ASSET_KINDS].sort(), ['image', 'video']);
-  for (const kind of ASSET_KINDS) {
+  // Desde o PASSO 14-C1 o job tem vocabulário PRÓPRIO — era um alias de
+  // `ASSET_KINDS`, e o alias escondia que "que arquivo é este?" e "que arquivo
+  // este trabalho produz?" são duas perguntas. `audio` entrou nas duas.
+  assert.deepEqual([...GENERATION_JOB_KINDS].sort(), ['audio', 'image', 'video']);
+  for (const kind of GENERATION_JOB_KINDS) {
     assert.equal(createGenerationJobRecord(base({ jobId: `j_${kind}`, kind }), db).kind, kind);
   }
-  for (const invalido of ['audio', 'IMAGE', '', null]) {
+  for (const invalido of ['texto', 'narration', 'IMAGE', '', null]) {
     assert.throws(
       () => createGenerationJobRecord(base({ jobId: 'j_ruim', kind: invalido }), db),
       /Tipo de geração desconhecido/,

@@ -28,7 +28,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
-  ASSET_KINDS, ESQUEMA_ATUAL, closeDatabase, openDatabase, schemaVersion,
+  ESQUEMA_ATUAL, SCENE_MEDIA_KINDS, closeDatabase, openDatabase, schemaVersion,
 } from '../lib/server/domain/db.js';
 import { createProject } from '../lib/server/domain/projects.js';
 import { createThreadRecord } from '../lib/server/agent/threads.js';
@@ -292,9 +292,10 @@ test('I. ler e editar narração não cria Asset nenhum', () => {
 
   assert.equal(listAssets({ projectId: 'proj_a' }, db).length, 0);
 
-  // E o vocabulário de mídia continua o que era: áudio não é um `kind` ainda,
-  // e decidir se será é do 14-B.
-  assert.deepEqual([...ASSET_KINDS], ['image', 'video']);
+  // E a pipeline VISUAL continua o que era. `audio` virou tipo físico de Asset
+  // no PASSO 14-C1, mas ler ou editar narração não produz artefato nenhum — de
+  // som ou de imagem.
+  assert.deepEqual([...SCENE_MEDIA_KINDS], ['image', 'video']);
 });
 
 test('J. ler e editar narração não cria geração nenhuma', () => {

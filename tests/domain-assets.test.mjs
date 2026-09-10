@@ -63,7 +63,10 @@ test('campos opcionais ausentes viram NULL, não a string "null"', () => {
 test('projeto inexistente e kind desconhecido são recusados', () => {
   const db = bancoComProjeto();
   assert.throws(() => createAsset({ projectId: 'fantasma', kind: 'video' }, db), DomainError);
-  assert.throws(() => createAsset({ projectId: 'p1', kind: 'audio' }, db), DomainError);
+  // `audio` virou tipo VÁLIDO no PASSO 14-C1 e saiu daqui. O que continua sendo
+  // recusado é uma palavra que não está no vocabulário.
+  assert.throws(() => createAsset({ projectId: 'p1', kind: 'texto' }, db), DomainError);
+  assert.throws(() => createAsset({ projectId: 'p1', kind: 'narration' }, db), DomainError);
   assert.throws(() => createAsset({ projectId: 'p1', kind: undefined }, db), DomainError);
   assert.throws(
     () => createAsset({ projectId: 'p1', kind: 'video', status: 'inventado' }, db),

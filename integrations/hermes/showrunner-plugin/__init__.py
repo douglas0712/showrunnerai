@@ -371,6 +371,41 @@ GENERATE_SCENE_IMAGE_SCHEMA = {
     },
 }
 
+# ── o vídeo de uma cena ────────────────────────────────────────────────────
+#
+# Note o que FALTA aqui, e que é o ponto do passo: sourceAssetId. A geração de
+# vídeo avulsa o recebe — lá é o modelo que indica qual imagem animar. Aqui não
+# existe: o estúdio usa a imagem ESCOLHIDA da cena, resolvida do estado
+# gravado. Oferecer o campo seria devolver ao modelo a decisão que este passo
+# existe para tirar dele.
+
+GENERATE_SCENE_VIDEO_SCHEMA = {
+    "name": "project_generate_scene_video",
+    "description": (
+        "Anima a imagem JÁ ESCOLHIDA de uma cena desta produção, pelo número dela. Use "
+        "sempre que o pedido for dar movimento a uma cena — \"anime a cena 1\". Nunca use "
+        "og_generate_video para isso, e nunca informe qual imagem animar: o estúdio usa a "
+        "imagem escolhida da cena. Se a cena ainda não tiver imagem, gere a imagem "
+        "primeiro. O prompt é a direção do MOVIMENTO, não uma nova descrição do quadro. "
+        "Cada chamada cria um take NOVO. Responde assim que o trabalho é aceito; o "
+        "estúdio acompanha sozinho até o fim."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "ordinal": _SCENE_PROPERTIES["ordinal"],
+            "prompt": {
+                "type": "string",
+                "description": (
+                    "A direção do movimento desta cena: o que se move no quadro, para "
+                    "onde a câmera anda, o ritmo."
+                ),
+            },
+        },
+        "required": ["ordinal", "prompt"],
+    },
+}
+
 # A allowlist do plugin — a segunda das quatro barreiras. O nome pedido tem de
 # estar aqui para sequer virar uma mensagem no socket.
 _TOOLS = (
@@ -388,6 +423,7 @@ _TOOLS = (
     ("project_replace_scenes", REPLACE_SCENES_SCHEMA),
     ("project_update_scene", UPDATE_SCENE_SCHEMA),
     ("project_generate_scene_image", GENERATE_SCENE_IMAGE_SCHEMA),
+    ("project_generate_scene_video", GENERATE_SCENE_VIDEO_SCHEMA),
 )
 _ALLOWLIST = frozenset(name for name, _ in _TOOLS)
 

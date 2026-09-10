@@ -18,6 +18,7 @@ test('os aliases existem e mapeiam para os nomes canônicos', () => {
     'og_generate_image', 'og_generate_video', 'og_get_job',
     // PASSO 13-B: a imagem de uma cena da produção.
     'project_generate_scene_image',
+    'project_generate_scene_video',
     // PASSO 11: o material de referência do projeto.
     'project_get_production_plan',
     'project_get_scene',

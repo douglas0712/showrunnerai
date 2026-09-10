@@ -34,6 +34,11 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
     'generation_jobs',
     // PASSO 12: o planejamento da produção — plano, roteiro e cenas.
     'production_plan_sources', 'production_plans',
+    // PASSO 14-B: os takes de VOZ de uma cena e a escolha ativa. Tabelas
+    // próprias, e não uma extensão das de baixo: de uma imagem se pergunta
+    // "qual delas eu escolhi?", e de uma narração se pergunta também "ela ainda
+    // é do texto que está na cena?".
+    'production_scene_audio_selections', 'production_scene_audio_takes',
     // PASSO 13-A: os takes de uma cena e a escolha ativa. A mídia é uma LINHA
     // por tentativa, e não uma coluna na cena, para que regenerar acrescente em
     // vez de sobrescrever.
@@ -68,7 +73,11 @@ test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () =
   antigo.exec(
     // PASSO 12: o planejamento sai primeiro de todos — as cenas dependem do
     // roteiro, o roteiro do projeto, e as fontes do plano E do documento.
-    'DROP TABLE production_scene_media_selections; '
+    // PASSO 14-B: a voz da cena sai antes da cena, do Asset e do livro-razão —
+    // ela referencia os três.
+    'DROP TABLE production_scene_audio_selections; '
+    + 'DROP TABLE production_scene_audio_takes; '
+    + 'DROP TABLE production_scene_media_selections; '
     + 'DROP TABLE production_scene_media; '
     + 'DROP TABLE production_scenes; DROP TABLE production_scripts; '
     + 'DROP TABLE production_plan_sources; DROP TABLE production_plans; '

@@ -330,20 +330,37 @@ test('K. nenhuma ferramenta nova — a narração se edita por update_scene', ()
   );
 });
 
-test('L. nenhuma migração nova: a narração já tinha onde morar', () => {
+test('L. o TEXTO da narração continua morando num lugar só', () => {
   const db = banco();
 
   assert.equal(schemaVersion(db), ESQUEMA_ATUAL);
-  assert.equal(ESQUEMA_ATUAL, 10);
 
-  // A coluna é a do PASSO 12, na tabela da cena. Se um dia alguém criar uma
-  // tabela de narração, este teste é o que pergunta por quê.
-  const tabelas = db.prepare(
-    "SELECT name FROM sqlite_master WHERE type = 'table'",
-  ).all().map((l) => String(l.name));
-  assert.equal(tabelas.some((n) => /narration|narracao|audio/i.test(n)), false);
-
+  // O PASSO 14-A não criou tabela nenhuma, e o 14-B criou duas — mas as dele
+  // guardam TENTATIVAS DE VOZ, e não o parágrafo. A afirmação que este teste
+  // tranca nunca foi sobre o número de tabelas: é que o texto narrado existe
+  // num lugar só, para que não haja duas versões dele e a pergunta "qual das
+  // duas vale?" nunca precise de resposta.
   const colunas = db.prepare('PRAGMA table_info(production_scenes)')
     .all().map((l) => String(l.name));
   assert.ok(colunas.includes('narration'));
+
+  const tabelas = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+  ).all().map((l) => String(l.name));
+
+  for (const tabela of tabelas) {
+    if (tabela === 'production_scenes') continue;
+    const nomes = db.prepare(`PRAGMA table_info(${tabela})`)
+      .all().map((l) => String(l.name));
+    assert.equal(nomes.includes('narration'), false,
+      `o texto da narração ganhou uma segunda casa: ${tabela}`);
+  }
+
+  // E o que a voz guarda da narração é a IMPRESSÃO, nunca o texto: uma cópia
+  // do parágrafo aqui envelheceria em silêncio na primeira edição.
+  const voz = db.prepare('PRAGMA table_info(production_scene_audio_takes)')
+    .all().map((l) => String(l.name));
+  assert.ok(voz.includes('sourceNarrationFingerprint'));
+  assert.equal(voz.includes('narration'), false);
+  assert.equal(voz.includes('text'), false);
 });

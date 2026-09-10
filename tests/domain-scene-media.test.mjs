@@ -698,6 +698,8 @@ test('A. a migração 9 → 10 preserva tudo o que já estava no banco', async (
   }, primeira);
 
   // Volta ao 9 à força, como um banco que nunca viu a migração 10.
+  primeira.exec('DROP TABLE production_scene_audio_selections');
+  primeira.exec('DROP TABLE production_scene_audio_takes');
   primeira.exec('DROP TABLE production_scene_media_selections');
   primeira.exec('DROP TABLE production_scene_media');
   primeira.exec('PRAGMA user_version = 9');
@@ -705,7 +707,7 @@ test('A. a migração 9 → 10 preserva tudo o que já estava no banco', async (
 
   // Reabrir aplica só o que falta.
   const segunda = openDatabase(caminho);
-  assert.equal(schemaVersion(segunda), 10);
+  assert.equal(schemaVersion(segunda), ESQUEMA_ATUAL);
   assert.ok(ESQUEMA_ATUAL >= 10, 'a migração 10 precisa continuar existindo');
 
   // Tudo o que existia continua lá.

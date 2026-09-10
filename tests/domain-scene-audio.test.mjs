@@ -131,6 +131,9 @@ test('A · B · C · D. a migração 10 → 11 preserva tudo o que já estava no
   );
 
   // Volta ao 10 à força, como um banco que nunca viu a migração 11.
+  primeira.exec('DROP TABLE production_music_selections');
+  primeira.exec('DROP TABLE production_music_takes');
+  primeira.exec('DROP TABLE production_music_cues');
   primeira.exec('DROP TABLE production_scene_sfx_selections');
   primeira.exec('DROP TABLE production_scene_sfx_takes');
   primeira.exec('DROP TABLE production_scene_sfx_cues');

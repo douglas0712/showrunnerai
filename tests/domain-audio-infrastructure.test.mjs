@@ -171,6 +171,10 @@ function bancoNoEsquema11(caminho) {
     BEGIN;
     -- PASSO 14-D1A: o desenho de som nasceu depois do 11 e sai junto, para
     -- que a reexecução das migrações não esbarre numa tabela já existente.
+    -- PASSO 14-D2A: a trilha do projeto nasceu depois do 11 e sai junto.
+    DROP TABLE production_music_selections;
+    DROP TABLE production_music_takes;
+    DROP TABLE production_music_cues;
     DROP TABLE production_scene_sfx_selections;
     DROP TABLE production_scene_sfx_takes;
     DROP TABLE production_scene_sfx_cues;

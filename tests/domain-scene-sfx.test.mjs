@@ -507,6 +507,9 @@ test('migração 12 → 13 preserva tudo, e chega ao mesmo esquema de um banco n
   const asset = createAsset({ projectId: 'antigo', kind: 'audio', filename: 'v.wav' }, primeira);
 
   // Volta ao 12 derrubando só o que a 13 criou.
+  primeira.exec('DROP TABLE production_music_selections');
+  primeira.exec('DROP TABLE production_music_takes');
+  primeira.exec('DROP TABLE production_music_cues');
   primeira.exec('DROP TABLE production_scene_sfx_selections');
   primeira.exec('DROP TABLE production_scene_sfx_takes');
   primeira.exec('DROP TABLE production_scene_sfx_cues');
@@ -514,8 +517,8 @@ test('migração 12 → 13 preserva tudo, e chega ao mesmo esquema de um banco n
   primeira.close();
 
   const migrado = openDatabase(caminho);
-  assert.equal(schemaVersion(migrado), 13);
-  assert.equal(ESQUEMA_ATUAL, 13);
+  assert.equal(schemaVersion(migrado), ESQUEMA_ATUAL);
+  assert.ok(ESQUEMA_ATUAL >= 13, 'a migração 13 precisa continuar existindo');
 
   // O que existia continua lá.
   assert.equal(listProductionScenes('antigo', migrado).length, 1);

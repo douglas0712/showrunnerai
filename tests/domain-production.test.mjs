@@ -768,6 +768,9 @@ test('N. a migração 8 → 9 preserva tudo o que já estava no banco', async ()
   // das migrações POSTERIORES saem primeiro: voltar a versão faz o banco
   // reexecutar tudo o que vem depois do 8, e uma tabela sobrevivente do 10
   // faria o CREATE dela esbarrar em si mesma.
+  primeira.exec('DROP TABLE production_music_selections');
+  primeira.exec('DROP TABLE production_music_takes');
+  primeira.exec('DROP TABLE production_music_cues');
   primeira.exec('DROP TABLE production_scene_sfx_selections');
   primeira.exec('DROP TABLE production_scene_sfx_takes');
   primeira.exec('DROP TABLE production_scene_sfx_cues');

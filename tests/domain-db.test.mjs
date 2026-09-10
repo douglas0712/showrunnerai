@@ -33,6 +33,10 @@ test('abrir um banco novo cria o esquema na versão corrente', () => {
     // PASSO 10.2: o livro-razão das gerações.
     'generation_jobs',
     // PASSO 12: o planejamento da produção — plano, roteiro e cenas.
+    // PASSO 14-D2A: a trilha da produção. Pende do PROJETO, e não da cena —
+    // uma música atravessa cenas, e substituir o roteiro não a apaga.
+    'production_music_cues', 'production_music_selections',
+    'production_music_takes',
     'production_plan_sources', 'production_plans',
     // PASSO 14-B: os takes de VOZ de uma cena e a escolha ativa. Tabelas
     // próprias, e não uma extensão das de baixo: de uma imagem se pergunta
@@ -77,8 +81,12 @@ test('um banco na versão 1 ganha as tabelas da versão 2 sem perder dado', () =
   antigo.exec(
     // PASSO 12: o planejamento sai primeiro de todos — as cenas dependem do
     // roteiro, o roteiro do projeto, e as fontes do plano E do documento.
+    // PASSO 14-D2A: a trilha pende do PROJETO e sai antes dele.
+    'DROP TABLE production_music_selections; '
+    + 'DROP TABLE production_music_takes; '
+    + 'DROP TABLE production_music_cues; '
     // PASSO 14-D1A: o desenho de som sai primeiro — cues, takes e escolhas.
-    'DROP TABLE production_scene_sfx_selections; '
+    + 'DROP TABLE production_scene_sfx_selections; '
     + 'DROP TABLE production_scene_sfx_takes; '
     + 'DROP TABLE production_scene_sfx_cues; '
     // PASSO 14-B: a voz da cena sai antes da cena, do Asset e do livro-razão —

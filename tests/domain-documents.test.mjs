@@ -110,8 +110,12 @@ test('28b. migrar da versão 7 para a 8 preserva tudo o que já existia', () => 
     // PASSO 12: as tabelas do planejamento também não existiam na versão 7, e
     // saem antes das de documento — `production_plan_sources` referencia
     // `project_documents`.
+    // PASSO 14-D2A: a trilha pende do PROJETO e sai antes dele.
+    'DROP TABLE production_music_selections; '
+    + 'DROP TABLE production_music_takes; '
+    + 'DROP TABLE production_music_cues; '
     // PASSO 14-D1A: o desenho de som sai antes da cena, do Asset e do job.
-    'DROP TABLE production_scene_sfx_selections; '
+    + 'DROP TABLE production_scene_sfx_selections; '
     + 'DROP TABLE production_scene_sfx_takes; '
     + 'DROP TABLE production_scene_sfx_cues; '
     // PASSO 14-B: a voz da cena sai antes da cena, do Asset e do livro-razão.

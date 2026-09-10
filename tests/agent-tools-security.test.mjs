@@ -28,6 +28,8 @@ test('Gateway fornece apenas definições públicas das tools', () => {
     // PASSO 12: o planejamento da produção — plano, roteiro e cenas.
     'project.get_production_plan',
     'project.get_scene',
+    // PASSO 13-D: o estado real da mídia de uma cena, e a escolha do take.
+    'project.get_scene_media',
     'project.get_script',
     // PASSO 11: o material de referência do projeto.
     'project.list_documents',
@@ -36,6 +38,7 @@ test('Gateway fornece apenas definições públicas das tools', () => {
     'project.replace_scenes',
     'project.save_production_plan',
     'project.save_script',
+    'project.select_scene_take',
     'project.update_scene',
   ]);
 

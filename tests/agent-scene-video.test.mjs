@@ -616,9 +616,11 @@ test('T. o alias do Hermes aponta para a ferramenta canônica', () => {
   assert.match(plugin, /\("project_generate_scene_video", GENERATE_SCENE_VIDEO_SCHEMA\)/);
 
   // O schema do plugin NÃO oferece a origem — é o ponto do passo.
+  // Só o bloco DESTE schema — ver a mesma conferência em agent-scene-image.
+  const inicio = plugin.indexOf('GENERATE_SCENE_VIDEO_SCHEMA = {');
+  const seguinte = plugin.indexOf('_SCHEMA = {', inicio + 1);
   const bloco = plugin.slice(
-    plugin.indexOf('GENERATE_SCENE_VIDEO_SCHEMA = {'),
-    plugin.indexOf('# A allowlist do plugin'),
+    inicio, seguinte === -1 ? plugin.indexOf('# A allowlist do plugin') : seguinte,
   );
   for (const proibido of ['sourceAssetId', 'sceneId', 'mediaId', 'takeNumber', 'assetId',
     'workflowId', 'projectId']) {

@@ -406,6 +406,59 @@ GENERATE_SCENE_VIDEO_SCHEMA = {
     },
 }
 
+# ── o que a cena já tem, e qual tentativa vale ─────────────────────────────
+#
+# Estes dois são o que torna "use a segunda" uma operação, e não uma frase
+# simpática. O endereço continua sendo posição: número da cena, tipo, número da
+# tentativa. Nenhum identificador nosso entra nem sai.
+
+GET_SCENE_MEDIA_SCHEMA = {
+    "name": "project_get_scene_media",
+    "description": (
+        "Mostra o que uma cena desta produção já tem de mídia: as imagens e os vídeos "
+        "gerados, o número de cada tentativa, a situação de cada uma e qual está "
+        "escolhida. Consulte SEMPRE antes de responder \"qual imagem está selecionada?\" "
+        "ou \"qual é o estado da cena?\", e antes de agir sobre \"a segunda\", \"a outra\" "
+        "ou \"essa versão\". Vale o que está gravado, não o que foi dito na conversa."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {"ordinal": _SCENE_PROPERTIES["ordinal"]},
+        "required": ["ordinal"],
+    },
+}
+
+SELECT_SCENE_TAKE_SCHEMA = {
+    "name": "project_select_scene_take",
+    "description": (
+        "Escolhe qual tentativa (take) de imagem ou de vídeo passa a valer para uma cena. "
+        "É o que atende \"use a segunda\", \"prefiro a primeira\", \"fica com essa\". "
+        "Escolher NÃO apaga as outras, e dá para voltar atrás. Imagem e vídeo são "
+        "escolhidos separadamente. Só uma tentativa PRONTA pode ser escolhida. Se não "
+        "estiver claro a qual tentativa o usuário se refere, consulte a mídia da cena e "
+        "pergunte antes de escolher por ele."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "ordinal": _SCENE_PROPERTIES["ordinal"],
+            "kind": {
+                "type": "string",
+                "enum": ["image", "video"],
+                "description": 'O que está sendo escolhido: "image" ou "video".',
+            },
+            "takeNumber": {
+                "type": "integer",
+                "description": (
+                    "O número da tentativa, começando em 1 — o mesmo que aparece na "
+                    'mídia da cena. "a segunda imagem" é takeNumber 2.'
+                ),
+            },
+        },
+        "required": ["ordinal", "kind", "takeNumber"],
+    },
+}
+
 # A allowlist do plugin — a segunda das quatro barreiras. O nome pedido tem de
 # estar aqui para sequer virar uma mensagem no socket.
 _TOOLS = (
@@ -424,6 +477,8 @@ _TOOLS = (
     ("project_update_scene", UPDATE_SCENE_SCHEMA),
     ("project_generate_scene_image", GENERATE_SCENE_IMAGE_SCHEMA),
     ("project_generate_scene_video", GENERATE_SCENE_VIDEO_SCHEMA),
+    ("project_get_scene_media", GET_SCENE_MEDIA_SCHEMA),
+    ("project_select_scene_take", SELECT_SCENE_TAKE_SCHEMA),
 )
 _ALLOWLIST = frozenset(name for name, _ in _TOOLS)
 

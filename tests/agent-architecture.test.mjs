@@ -119,6 +119,10 @@ test('a camada de agente tem os arquivos que esta etapa previu', () => {
     // de produção que alcança generation/facade — planejar não gera, produzir
     // sim. O que ela continua não alcançando é ComfyUI, workflow e provider.
     'tools/handlers/productionSceneMedia.js',
+    // PASSO 13-D: ler o que a cena tem, e escolher qual tentativa vale. As
+    // duas juntas porque são a mesma conversa — não dá para escolher "a
+    // segunda" sem antes saber que existe uma segunda.
+    'tools/handlers/productionSceneTakes.js',
     // PASSO 13-C: a imagem escolhida da cena ganha movimento. Arquivo à
     // parte pela mesma divisão de generateImage/generateVideo: são dois
     // pedidos, com pré-condições diferentes — gerar vídeo exige uma imagem

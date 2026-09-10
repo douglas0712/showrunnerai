@@ -22,6 +22,7 @@ test('os aliases existem e mapeiam para os nomes canônicos', () => {
     // PASSO 11: o material de referência do projeto.
     'project_get_production_plan',
     'project_get_scene',
+    'project_get_scene_media',
     'project_get_script',
     'project_list_documents',
     'project_list_scenes',
@@ -30,6 +31,7 @@ test('os aliases existem e mapeiam para os nomes canônicos', () => {
     'project_replace_scenes',
     'project_save_production_plan',
     'project_save_script',
+    'project_select_scene_take',
     'project_update_scene',
   ]);
   assert.equal(toCanonicalToolName('og_generate_image'), 'og.generate_image');

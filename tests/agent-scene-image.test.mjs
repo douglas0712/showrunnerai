@@ -624,9 +624,12 @@ test('R. o alias do Hermes aponta para a ferramenta canônica', () => {
   );
   assert.match(plugin, /"name": "project_generate_scene_image"/);
   assert.match(plugin, /\("project_generate_scene_image", GENERATE_SCENE_IMAGE_SCHEMA\)/);
+  // Só o bloco DESTE schema: outros schemas entraram entre ele e a allowlist,
+  // e alguns deles oferecem, com razão, campos que este não pode oferecer.
+  const inicio = plugin.indexOf('GENERATE_SCENE_IMAGE_SCHEMA = {');
+  const seguinte = plugin.indexOf('_SCHEMA = {', inicio + 1);
   const bloco = plugin.slice(
-    plugin.indexOf('GENERATE_SCENE_IMAGE_SCHEMA = {'),
-    plugin.indexOf('# A allowlist do plugin'),
+    inicio, seguinte === -1 ? plugin.indexOf('# A allowlist do plugin') : seguinte,
   );
   for (const proibido of ['sceneId', 'mediaId', 'takeNumber', 'assetId', 'workflowId', 'projectId']) {
     assert.ok(!bloco.includes(`"${proibido}"`), `o schema do plugin oferece ${proibido}`);
